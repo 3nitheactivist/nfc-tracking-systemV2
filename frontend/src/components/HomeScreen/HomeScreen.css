@@ -59,12 +59,14 @@
   height: 76px;
 }
 .logo3 {
-  width: 85px;
-  height: 82px;
+  /* margin-top: 5px; */
+  width: 80px;
+  height: 79px;
 }
 .logo4 {
-  width: 95px;
-  height: 82px;
+  margin-top: 10px;
+  width: 80px;
+  height: 55px;
 }
 
 /* MENU GRID */

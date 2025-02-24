@@ -2,33 +2,37 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./utils/config/AuthProvider"; // Ensure this path matches your project
 import HomeScreen from "./components/HomeScreen/HomeScreen";
-import RegisterStudent from "./components/RegisterStudent/RegisterStudent";
-import RegisterCourse from "./components/RegisterCourse/RegisterCourse";
+import RegisterStudent from "./components/EnrollStudent/EnrollStudents";
 import TakeAttendance from "./components/TakeAttendance/TakeAttendance";
-import ViewAttendance from "./components/ViewAttendance/ViewAttendance";
+import AttendanceVerification from "./components/ViewAttendance/ViewAttendance";
 import SignupUser from "./components/SignupUser/SignupUser";
 import LoginUser from "./components/LoginUser/LoginUser";
 import LoadingScreen from "./components/LoadingScreen/LoadingScreen";
 import Profile from "./components/Profile/Profile";
 import PrivateRoute from "./components/PrivateRoute";
 import ForgotPassword from "./components/ForgotPassword/ForgotPassword";
-import ViewCourse from "./components/ViewCourse/ViewCourse";
-import Registeration from "./components/Registeration/Registeration";
-import ViewStudents from "./components/ViewStudents/ViewStudents"
+import ViewExams from "./components/ViewExams/ViewExams";
 import { BluetoothProvider } from "./components/BluetoothButton/BluetoothContext";
+import { AppLayout } from "./components/AppLayout/AppLayout";
+// import "antd/dist/reset.css";
 import "antd/dist/reset.css";
+import EnrollStudent from "./components/EnrollStudent/EnrollStudents";
+import ViewStudents from "./components/EnrollStudent/ViewStudents/ViewStudents";
+import StudentProfile from "./components/StudentProfile/StudentProfile";
 function App() {
   return (
     <AuthProvider>
       <BluetoothProvider>
-      <Router>
+        <Router>
           <Routes>
             <Route path="/" element={<LoadingScreen />} />
             <Route
               path="/dashboard"
               element={
                 <PrivateRoute>
-                  <HomeScreen />
+                  <AppLayout>
+                    <HomeScreen />
+                  </AppLayout>
                 </PrivateRoute>
               }
             />
@@ -44,34 +48,42 @@ function App() {
               }
             />
             <Route
-              path="/viewCourses"
+              path="/viewExams"
               element={
                 <PrivateRoute>
-                  <ViewCourse />
+                  <AppLayout>
+                    <ViewExams />
+                  </AppLayout>
                 </PrivateRoute>
               }
             />
-                        <Route
-              path="/viewStudent"
+               <Route
+              path="/student-profile/:studentId"
               element={
                 <PrivateRoute>
-                  <ViewStudents />
+                  <AppLayout>
+                    <StudentProfile />
+                  </AppLayout>
                 </PrivateRoute>
               }
-            />
-            <Route 
-            path="/registration"
-            element={
-              <PrivateRoute>
-                <Registeration/>
-              </PrivateRoute>
-            }
             />
             <Route
-              path="/registerCourse"
+              path="/viewStudents"
               element={
                 <PrivateRoute>
-                  <RegisterCourse />
+                  <AppLayout>
+                    <ViewStudents />
+                  </AppLayout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/enrollStudents"
+              element={
+                <PrivateRoute>
+                  <AppLayout>
+                    <EnrollStudent />
+                  </AppLayout>
                 </PrivateRoute>
               }
             />
@@ -84,10 +96,12 @@ function App() {
               }
             />
             <Route
-              path="/viewAttendance"
+              path="/viewExamAttendance"
               element={
                 <PrivateRoute>
-                  <ViewAttendance />
+                  <AppLayout>
+                    <AttendanceVerification />
+                  </AppLayout>
                 </PrivateRoute>
               }
             />
@@ -102,7 +116,6 @@ function App() {
           </Routes>
         </Router>
       </BluetoothProvider>
-        
     </AuthProvider>
   );
 }
