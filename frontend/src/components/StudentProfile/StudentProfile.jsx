@@ -3,8 +3,9 @@ import { Card, Avatar, Typography, Tag, Row, Col, Table, Button } from 'antd';
 import { UserOutlined, MailOutlined, PhoneOutlined, IdcardOutlined, CreditCardOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
+import moment from 'moment';
 
 const { Title } = Typography;
 
@@ -27,6 +28,38 @@ const StudentProfile = () => {
       }
     };
     fetchStudentData();
+  }, [db, studentId]);
+
+  // Fetch exam history (for example, from AttendanceRecords)
+  useEffect(() => {
+    const fetchExamHistory = async () => {
+      try {
+        const attendanceRef = collection(db, 'AttendanceRecords');
+        const q = query(attendanceRef, where('studentId', '==', studentId));
+        const querySnapshot = await getDocs(q);
+        const historyData = await Promise.all(
+          querySnapshot.docs.map(async (docSnap) => {
+            const record = docSnap.data();
+            // Optionally, fetch extra exam details from the Exams collection:
+            const examDoc = await getDoc(doc(db, 'Exams', record.examId));
+            const examData = examDoc.exists() ? examDoc.data() : {};
+            return {
+              key: docSnap.id,
+              examName: examData.courseName || 'N/A',
+              date: record.timestamp
+                ? moment(record.timestamp.toDate()).format('MMM DD, YYYY')
+                : 'N/A',
+              status: record.status
+              // score: record.score || 'N/A',
+            };
+          })
+        );
+        setExamHistory(historyData);
+      } catch (error) {
+        console.error('Error fetching exam history:', error);
+      }
+    };
+    fetchExamHistory();
   }, [db, studentId]);
 
   if (!studentData) {
@@ -53,11 +86,6 @@ const StudentProfile = () => {
           {status}
         </Tag>
       ),
-    },
-    {
-      title: 'Score',
-      dataIndex: 'score',
-      key: 'score',
     }
   ];
 
@@ -109,7 +137,12 @@ const StudentProfile = () => {
           <Col span={24}>
             <Card size="small" title="NFC Information">
               <p><CreditCardOutlined /> NFC ID: {studentData.nfcTagId}</p>
-              <p>Enrollment Date: {studentData.enrollmentDate ? new Date(studentData.enrollmentDate.seconds * 1000).toLocaleDateString() : ''}</p>
+              <p>
+                Enrollment Date:{" "}
+                {studentData.enrollmentDate
+                  ? new Date(studentData.enrollmentDate.seconds * 1000).toLocaleDateString()
+                  : ''}
+              </p>
             </Card>
           </Col>
         </Row>

@@ -1,5 +1,3 @@
-
-
 // // // import React, { useState, useEffect } from "react";
 // // // import {
 // // //   Layout,
@@ -606,7 +604,6 @@
 // //       />
 // //     </motion.div>
 // //   );
-  
 
 // //   // ------------------------------------------------------------------
 // //   // 11) Modal to View Assigned Students for an Exam
@@ -661,7 +658,6 @@
 // // };
 
 // // export default ViewExams;
-
 
 // import React, { useState, useEffect } from "react";
 // import {
@@ -1087,7 +1083,7 @@ import {
   Card,
   message,
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import {
   getFirestore,
   collection,
@@ -1103,6 +1099,8 @@ import {
 } from "firebase/firestore";
 import useAuth from "../../utils/config/useAuth";
 import moment from "moment";
+import { useNavigate } from "react-router-dom";
+
 
 const { Content } = Layout;
 
@@ -1118,107 +1116,108 @@ const ViewExams = () => {
 
   const { currentUser } = useAuth();
   const db = getFirestore();
+  const Navigate = useNavigate();
 
   const styles = {
     pageContainer: {
-      minHeight: '100vh',
-      backgroundColor: '#fff',
-      padding: '20px'
+      minHeight: "100vh",
+      backgroundColor: "#fff",
+      padding: "20px",
     },
     contentWrapper: {
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '0 20px'
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "0 20px",
     },
     header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '24px',
-      flexWrap: 'wrap',
-      gap: '16px'
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "24px",
+      flexWrap: "wrap",
+      gap: "16px",
     },
     headerTitle: {
-      fontSize: '24px',
-      fontWeight: '600',
-      margin: 0
+      fontSize: "24px",
+      fontWeight: "600",
+      margin: 0,
     },
     examGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-      gap: '24px',
-      padding: '20px 0'
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+      gap: "24px",
+      padding: "20px 0",
     },
     examCard: {
-      border: '1px solid #e8e8e8',
-      borderRadius: '8px',
-      padding: '20px',
-      backgroundColor: '#fff',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-      transition: 'box-shadow 0.3s ease',
+      border: "1px solid #e8e8e8",
+      borderRadius: "8px",
+      padding: "20px",
+      backgroundColor: "#fff",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+      transition: "box-shadow 0.3s ease",
     },
     examTitle: {
-      fontSize: '18px',
-      fontWeight: '600',
-      marginBottom: '8px',
-      color: '#262626'
+      fontSize: "18px",
+      fontWeight: "600",
+      marginBottom: "8px",
+      color: "#262626",
     },
     examCode: {
-      fontSize: '14px',
-      color: '#8c8c8c',
-      marginBottom: '16px'
+      fontSize: "14px",
+      color: "#8c8c8c",
+      marginBottom: "16px",
     },
     examDetail: {
-      fontSize: '14px',
-      color: '#595959',
-      marginBottom: '8px'
+      fontSize: "14px",
+      color: "#595959",
+      marginBottom: "8px",
     },
     buttonGroup: {
-      display: 'flex',
-      gap: '8px',
-      marginTop: '20px'
+      display: "flex",
+      gap: "8px",
+      marginTop: "20px",
     },
     primaryButton: {
-      backgroundColor: '#00923f',
-      borderColor: '#00923f',
-      color: '#fff',
+      backgroundColor: "#00923f",
+      borderColor: "#00923f",
+      color: "#fff",
       flex: 1,
-      padding: '8px 16px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      border: 'none',
-      transition: 'background-color 0.3s ease'
+      padding: "8px 16px",
+      borderRadius: "4px",
+      cursor: "pointer",
+      border: "none",
+      transition: "background-color 0.3s ease",
     },
     deleteButton: {
-      backgroundColor: '#ff4d4f',
-      borderColor: '#ff4d4f',
-      color: '#fff',
+      backgroundColor: "#ff4d4f",
+      borderColor: "#ff4d4f",
+      color: "#fff",
       flex: 1,
-      padding: '8px 16px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      border: 'none',
-      transition: 'background-color 0.3s ease'
+      padding: "8px 16px",
+      borderRadius: "4px",
+      cursor: "pointer",
+      border: "none",
+      transition: "background-color 0.3s ease",
     },
     modal: {
-      width: '100%',
-      maxWidth: '500px'
+      width: "100%",
+      maxWidth: "500px",
     },
     form: {
-      width: '100%'
+      width: "100%",
     },
     formItem: {
-      marginBottom: '16px'
+      marginBottom: "16px",
     },
     input: {
-      width: '100%',
-      padding: '8px 12px',
-      borderRadius: '4px',
-      border: '1px solid #d9d9d9'
+      width: "100%",
+      padding: "8px 12px",
+      borderRadius: "4px",
+      border: "1px solid #d9d9d9",
     },
     select: {
-      width: '100%'
-    }
+      width: "100%",
+    },
   };
 
   useEffect(() => {
@@ -1230,7 +1229,8 @@ const ViewExams = () => {
       (snapshot) => {
         const fetchedExams = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
-          const examDate = data.examDate instanceof Timestamp ? data.examDate : null;
+          const examDate =
+            data.examDate instanceof Timestamp ? data.examDate : null;
           return { id: docSnap.id, ...data, examDate };
         });
         const sortedExams = fetchedExams.sort(
@@ -1256,7 +1256,9 @@ const ViewExams = () => {
         const options = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
           return {
-            label: `${data.firstName || ""} ${data.lastName || ""} - ${data.matricNumber || "N/A"}`,
+            label: `${data.firstName || ""} ${data.lastName || ""} - ${
+              data.matricNumber || "N/A"
+            }`,
             value: docSnap.id,
           };
         });
@@ -1272,7 +1274,9 @@ const ViewExams = () => {
 
   const getExamMoment = (examDate) => {
     if (!examDate) return null;
-    return examDate instanceof Timestamp ? moment(examDate.toDate()) : moment(examDate);
+    return examDate instanceof Timestamp
+      ? moment(examDate.toDate())
+      : moment(examDate);
   };
 
   const handleAddExam = () => {
@@ -1352,14 +1356,23 @@ const ViewExams = () => {
       closable={!isSubmitting}
       style={styles.modal}
     >
-      <Form form={form} layout="vertical" onFinish={onFinish} style={styles.form}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        style={styles.form}
+      >
         <Form.Item
           name="courseName"
           label="Course Name"
           rules={[{ required: true, message: "Please enter course name" }]}
           style={styles.formItem}
         >
-          <Input placeholder="Course Name" disabled={isSubmitting} style={styles.input} />
+          <Input
+            placeholder="Course Name"
+            disabled={isSubmitting}
+            style={styles.input}
+          />
         </Form.Item>
         <Form.Item
           name="courseCode"
@@ -1367,7 +1380,11 @@ const ViewExams = () => {
           rules={[{ required: true, message: "Please enter course code" }]}
           style={styles.formItem}
         >
-          <Input placeholder="Course Code" disabled={isSubmitting} style={styles.input} />
+          <Input
+            placeholder="Course Code"
+            disabled={isSubmitting}
+            style={styles.input}
+          />
         </Form.Item>
         <Form.Item
           name="date"
@@ -1388,7 +1405,11 @@ const ViewExams = () => {
           rules={[{ required: true, message: "Please enter exam location" }]}
           style={styles.formItem}
         >
-          <Input placeholder="Exam Location" disabled={isSubmitting} style={styles.input} />
+          <Input
+            placeholder="Exam Location"
+            disabled={isSubmitting}
+            style={styles.input}
+          />
         </Form.Item>
         <Form.Item
           name="students"
@@ -1449,6 +1470,19 @@ const ViewExams = () => {
 
   return (
     <Layout>
+      <Button
+        type="primary"
+        icon={<ArrowLeftOutlined />}
+        onClick={() => Navigate(-1)}
+        style={{
+          marginBottom: "16px",
+          backgroundColor: "#00923f",
+          borderColor: "#00923f",
+          width: "12%"
+        }}
+      >
+        Back
+      </Button>
       <Content style={styles.pageContainer}>
         <div style={styles.contentWrapper}>
           <div style={styles.header}>
@@ -1468,18 +1502,20 @@ const ViewExams = () => {
               const examMoment = getExamMoment(exam.examDate);
               return (
                 <div key={exam.id} style={styles.examCard}>
-                  <h3 style={styles.examTitle}>
-                    {exam.courseName}
-                  </h3>
+                  <h3 style={styles.examTitle}>{exam.courseName}</h3>
                   <p style={styles.examCode}>{exam.courseCode}</p>
                   <p style={styles.examDetail}>
-                    Date: {examMoment ? examMoment.format("MMM DD, YYYY HH:mm") : "N/A"}
+                    Date:{" "}
+                    {examMoment
+                      ? examMoment.format("MMM DD, YYYY HH:mm")
+                      : "N/A"}
                   </p>
                   <p style={styles.examDetail}>
                     Location: {exam.examLocation || "N/A"}
                   </p>
                   <p style={styles.examDetail}>
-                    Students: {exam.enrolledStudents ? exam.enrolledStudents.length : 0}
+                    Students:{" "}
+                    {exam.enrolledStudents ? exam.enrolledStudents.length : 0}
                   </p>
                   <div style={styles.buttonGroup}>
                     <button

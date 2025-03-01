@@ -2,19 +2,21 @@
 // import { Button } from "antd";
 // import { PoweroffOutlined } from "@ant-design/icons";
 // import axios from "axios";
+// import { useBluetooth } from "./BluetoothContext";
 
 // const BluetoothButton = () => {
-//   const [isRunning, setIsRunning] = useState(false);
+//   const { isBluetoothConnected, setIsBluetoothConnected } = useBluetooth();
 //   const [loading, setLoading] = useState(false);
 
 //   const toggleServer = async () => {
 //     setLoading(true);
 //     try {
-//       const response = await axios.post("http://localhost:5000/toggle-server", {
-//         action: isRunning ? "stop" : "start",
+//       const response = await axios.post("https://188a-105-113-64-142.ngrok-free.app/toggle-server"
+// , {
+//         action: isBluetoothConnected ? "stop" : "start",
 //       });
 //       if (response.data.success) {
-//         setIsRunning(!isRunning);
+//         setIsBluetoothConnected(!isBluetoothConnected);
 //       } else {
 //         console.error("Failed to toggle server:", response.data.message);
 //       }
@@ -27,13 +29,13 @@
 //   return (
 //     <div style={{ textAlign: "center", marginTop: "20px" }}>
 //       <Button
-//         type={isRunning ? "primary" : "default"}
+//         type={isBluetoothConnected ? "primary" : "default"}
 //         icon={<PoweroffOutlined />}
 //         loading={loading}
 //         onClick={toggleServer}
-//         danger={isRunning}
+//         danger={isBluetoothConnected}
 //       >
-//         {isRunning ? "Stop Bluetooth" : "Start Bluetooth"}
+//         {isBluetoothConnected ? "Stop Bluetooth" : "Start Bluetooth"}
 //       </Button>
 //     </div>
 //   );
@@ -41,7 +43,6 @@
 
 // export default BluetoothButton;
 
-// BluetoothButton.jsx
 import React, { useState } from "react";
 import { Button } from "antd";
 import { PoweroffOutlined } from "@ant-design/icons";
@@ -55,8 +56,8 @@ const BluetoothButton = () => {
   const toggleServer = async () => {
     setLoading(true);
     try {
-      const response = await axios.post("https://188a-105-113-64-142.ngrok-free.app/toggle-server"
-, {
+      // Change the URL to your local server address
+      const response = await axios.post("http://localhost:5000/toggle-server", {
         action: isBluetoothConnected ? "stop" : "start",
       });
       if (response.data.success) {

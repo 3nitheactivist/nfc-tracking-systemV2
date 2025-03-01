@@ -1,4 +1,5 @@
 
+
 // import React, { useState } from "react";
 // import {
 //   Form,
@@ -19,6 +20,7 @@
 //   PhoneOutlined,
 //   IdcardOutlined,
 //   SaveOutlined,
+//   ArrowLeftOutlined,
 // } from "@ant-design/icons";
 // import ViewStudents from "./ViewStudents/ViewStudents";
 // import useAuth from "../../utils/config/useAuth";
@@ -32,6 +34,7 @@
 //   where,
 //   getDocs,
 // } from "firebase/firestore";
+// import { useNavigate } from "react-router-dom";
 
 // const { Title } = Typography;
 // const { TabPane } = Tabs;
@@ -42,6 +45,13 @@
 //   const [studentIdPresent, setStudentIdPresent] = useState(false);
 //   const { currentUser } = useAuth();
 //   const db = getFirestore();
+  
+//   if (!currentUser || !currentUser.uid) {
+//     message.error("User not logged in!");
+//     return;
+//   }
+//   console.log("Current user UID:", currentUser.uid);
+  
 
 //   // For testing: simulate an NFC scan that returns a mock student ID
 //   const mockNFCScan = () => {
@@ -63,11 +73,13 @@
 //       // Duplicate check: query for documents with the same nfcTagId
 //       const duplicateQuery = query(
 //         collection(db, "Students"),
-//         where("nfcTagId", "==", scannedNFCId)
+//         where("nfcTagId", "==", scannedNFCId),
+//         where("userId", "==", currentUser.uid)
 //       );
+      
 //       const duplicateSnapshot = await getDocs(duplicateQuery);
 //       console.log("Duplicate Query Snapshot Size:", duplicateSnapshot.size);
-      
+
 //       // Filter duplicates for this user only
 //       const duplicateExists = duplicateSnapshot.docs.some(
 //         (doc) => doc.data().userId === currentUser.uid
@@ -87,8 +99,10 @@
 //         userId: currentUser.uid,
 //       };
 
+
 //       // Save studentData to the "Students" collection in Firestore
 //       await addDoc(collection(db, "Students"), studentData);
+      
 
 //       console.log("Student Data:", studentData);
 //       message.success("Student enrolled successfully!");
@@ -171,6 +185,15 @@
 //             </Col>
 //           </Row>
 
+//           {/* Matric Number field added */}
+//           <Form.Item
+//             name="matricNumber"
+//             label="Matric Number"
+//             rules={[{ required: true, message: "Please enter matric number" }]}
+//           >
+//             <Input placeholder="Matric Number" disabled={!studentIdPresent} />
+//           </Form.Item>
+
 //           <Form.Item
 //             name="email"
 //             label="Email"
@@ -215,7 +238,7 @@
 //               icon={<SaveOutlined />}
 //               loading={loading}
 //               block
-//               style={{ backgroundColor: "#00923f", fontSize: "20px" }}
+//               style={{  fontSize: "20px" }}
 //               disabled={!studentIdPresent}
 //             >
 //               Enroll Student
@@ -230,15 +253,28 @@
 // // Main Student Management Component
 // const EnrollStudent = () => {
 //   const [activeTab, setActiveTab] = useState("enrollment");
+//   const Navigate = useNavigate();
 
 //   return (
 //     <div style={{ padding: "1.5rem" }}>
+//       <Button
+//         type="primary"
+//         icon={<ArrowLeftOutlined />}
+//         onClick={() => Navigate(-1)}
+//         style={{
+//           marginBottom: "16px",
+//           backgroundColor: "#00923f",
+//           borderColor: "#00923f",
+//         }}
+//       >
+//         Back
+//       </Button>
 //       <Tabs
 //         activeKey={activeTab}
 //         onChange={setActiveTab}
 //         style={{ maxWidth: "48rem", marginLeft: "auto", marginRight: "auto" }}
 //       >
-//         <TabPane tab="Student Enrollment" key="enrollment">
+//         <TabPane tab="Student Enrollment" key="enrollment" >
 //           <StudentEnrollment />
 //         </TabPane>
 //         <TabPane tab="View Students" key="students">
@@ -250,7 +286,7 @@
 // };
 
 // export default EnrollStudent;
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Form,
   Input,
@@ -270,6 +306,7 @@ import {
   PhoneOutlined,
   IdcardOutlined,
   SaveOutlined,
+  ArrowLeftOutlined,
 } from "@ant-design/icons";
 import ViewStudents from "./ViewStudents/ViewStudents";
 import useAuth from "../../utils/config/useAuth";
@@ -283,6 +320,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 const { Title } = Typography;
 const { TabPane } = Tabs;
@@ -291,13 +329,68 @@ const StudentEnrollment = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [studentIdPresent, setStudentIdPresent] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const scanTimeoutRef = useRef(null);
   const { currentUser } = useAuth();
   const db = getFirestore();
+  const navigate = useNavigate();
 
-  // For testing: simulate an NFC scan that returns a mock student ID
-  const mockNFCScan = () => {
-    form.setFieldsValue({ studentId: "MOCK12345" });
-    setStudentIdPresent(true);
+  if (!currentUser || !currentUser.uid) {
+    message.error("User not logged in!");
+    return null;
+  }
+  console.log("Current user UID:", currentUser.uid);
+
+  // Establish WebSocket connection once on mount
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8080");
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established.");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.fingerprintID && scanning) {
+          // When scanner data is received and scanning is active:
+          form.setFieldsValue({ studentId: data.fingerprintID });
+          setStudentIdPresent(true);
+          message.success("ID received from scanner: " + data.fingerprintID);
+          setScanning(false);
+          if (scanTimeoutRef.current) {
+            clearTimeout(scanTimeoutRef.current);
+            scanTimeoutRef.current = null;
+          }
+        }
+      } catch (err) {
+        console.error("Error parsing WebSocket message", err);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed.");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [form, scanning]);
+
+  // Trigger scanning: start waiting for scanner data and a 20-second timeout.
+  const handleScan = () => {
+    setScanning(true);
+    message.info("Waiting for scanner data...");
+    // Set a timeout: if no data is received within 20 seconds, stop scanning.
+    scanTimeoutRef.current = setTimeout(() => {
+      setScanning(false);
+      message.error("Scanning timed out. Please try again.");
+      scanTimeoutRef.current = null;
+    }, 20000); // 20 seconds
   };
 
   // Called when the form is submitted
@@ -308,18 +401,18 @@ const StudentEnrollment = () => {
     }
     setLoading(true);
     try {
-      // Use the scanned studentId as the NFC tag ID
-      const scannedNFCId = values.studentId;
+      const scannedID = values.studentId;
 
-      // Duplicate check: query for documents with the same nfcTagId
+      // Duplicate check: query for documents with the same nfcTagId and matching userId
       const duplicateQuery = query(
         collection(db, "Students"),
-        where("nfcTagId", "==", scannedNFCId)
+        where("nfcTagId", "==", scannedID),
+        where("userId", "==", currentUser.uid)
       );
+
       const duplicateSnapshot = await getDocs(duplicateQuery);
       console.log("Duplicate Query Snapshot Size:", duplicateSnapshot.size);
-      
-      // Filter duplicates for this user only
+
       const duplicateExists = duplicateSnapshot.docs.some(
         (doc) => doc.data().userId === currentUser.uid
       );
@@ -329,18 +422,15 @@ const StudentEnrollment = () => {
         return;
       }
 
-      // Combine form values with additional data, storing the scanned NFC ID as nfcTagId
       const studentData = {
         ...values,
-        nfcTagId: scannedNFCId,
+        nfcTagId: scannedID,
         enrollmentDate: new Date(),
         status: "active",
         userId: currentUser.uid,
       };
 
-      // Save studentData to the "Students" collection in Firestore
       await addDoc(collection(db, "Students"), studentData);
-
       console.log("Student Data:", studentData);
       message.success("Student enrolled successfully!");
       form.resetFields();
@@ -352,7 +442,7 @@ const StudentEnrollment = () => {
     }
   };
 
-  // Watch for changes to the Student ID field
+  // Update studentIdPresent state based on changes in the Student ID field
   const onValuesChange = (changedValues, allValues) => {
     if (changedValues.studentId !== undefined) {
       if (allValues.studentId && allValues.studentId.trim() !== "") {
@@ -380,19 +470,27 @@ const StudentEnrollment = () => {
           onValuesChange={onValuesChange}
           initialValues={{ country: "Nigeria" }}
         >
-          {/* Student ID field - must be the first and mandatory */}
+          {/* Student ID field */}
           <Form.Item
             name="studentId"
             label="Student ID"
             rules={[{ required: true, message: "Please enter student ID" }]}
           >
-            <Input prefix={<IdcardOutlined />} placeholder="Student ID" />
-          </Form.Item>
-          <Form.Item>
-            <Button onClick={mockNFCScan}>Mock NFC Scan</Button>
+            <Input
+              prefix={<IdcardOutlined />}
+              placeholder="Student ID"
+              disabled={scanning} // Disable manual editing while scanning
+            />
           </Form.Item>
 
-          {/* Other form fields - disabled until Student ID is provided */}
+          {/* Scan ID Button */}
+          <Form.Item>
+            <Button onClick={handleScan} loading={scanning}>
+              {scanning ? "Scanning..." : "Scan ID"}
+            </Button>
+          </Form.Item>
+
+          {/* Other form fields - enabled only if a Student ID is present */}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -422,7 +520,6 @@ const StudentEnrollment = () => {
             </Col>
           </Row>
 
-          {/* Matric Number field added */}
           <Form.Item
             name="matricNumber"
             label="Matric Number"
@@ -475,7 +572,7 @@ const StudentEnrollment = () => {
               icon={<SaveOutlined />}
               loading={loading}
               block
-              style={{ backgroundColor: "#00923f", fontSize: "20px" }}
+              style={{ fontSize: "20px" }}
               disabled={!studentIdPresent}
             >
               Enroll Student
@@ -490,9 +587,22 @@ const StudentEnrollment = () => {
 // Main Student Management Component
 const EnrollStudent = () => {
   const [activeTab, setActiveTab] = useState("enrollment");
+  const Navigate = useNavigate();
 
   return (
     <div style={{ padding: "1.5rem" }}>
+      <Button
+        type="primary"
+        icon={<ArrowLeftOutlined />}
+        onClick={() => Navigate(-1)}
+        style={{
+          marginBottom: "16px",
+          backgroundColor: "#00923f",
+          borderColor: "#00923f",
+        }}
+      >
+        Back
+      </Button>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}

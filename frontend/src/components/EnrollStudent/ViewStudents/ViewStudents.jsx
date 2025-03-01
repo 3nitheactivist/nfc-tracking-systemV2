@@ -315,6 +315,39 @@
 // };
 
 // export default ViewStudents;
+// import React, { useState, useEffect } from 'react';
+// import { 
+//   Table, 
+//   Input, 
+//   Space, 
+//   Modal, 
+//   Form, 
+//   Alert, 
+//   Skeleton,
+//   Button,
+//   Tooltip,
+//   Popconfirm
+// } from 'antd';
+// import { 
+//   SearchOutlined, 
+//   EditOutlined, 
+//   DeleteOutlined,
+//   EyeOutlined
+// } from '@ant-design/icons';
+// import { useNavigate } from 'react-router-dom';
+// import { collection, doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+// import { getFirestore } from 'firebase/firestore';
+
+// const ViewStudents = () => {
+//   const [students, setStudents] = useState([]);
+//   const [filteredStudents, setFilteredStudents] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+//   const [alertMessage, setAlertMessage] = useState('');
+//   const [alertType, setAlertType] = useState('');
+//   const [form] = Form.useForm();
+//   const navigate = useNavigate();
+//   const db = getFirestore();
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -335,8 +368,10 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
+import useAuth from '../../../utils/config/useAuth';
+ // import your auth hook
 
 const ViewStudents = () => {
   const [students, setStudents] = useState([]);
@@ -348,12 +383,41 @@ const ViewStudents = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const db = getFirestore();
+  const { currentUser } = useAuth(); // get the currently logged in admin
 
   // Real-time fetch of student data from the "Students" collection
+  // useEffect(() => {
+  //   const studentsCollection = collection(db, 'Students'); // note: capital S
+  //   const unsubscribe = onSnapshot(
+  //     studentsCollection,
+  //     (snapshot) => {
+  //       const studentList = snapshot.docs.map(doc => ({
+  //         id: doc.id,
+  //         ...doc.data()
+  //       }));
+  //       setStudents(studentList);
+  //       setFilteredStudents(studentList);
+  //       setLoading(false);
+  //     },
+  //     (error) => {
+  //       console.error('Error fetching students:', error);
+  //       setAlertMessage('Error fetching students');
+  //       setAlertType('error');
+  //       setLoading(false);
+  //     }
+  //   );
+
+  //   return () => unsubscribe();
+  // }, [db]);
+
+  // Real-time fetch of student data for the current admin only
   useEffect(() => {
-    const studentsCollection = collection(db, 'Students'); // note: capital S
+    if (!currentUser) return;
+    const studentsCollection = collection(db, 'Students');
+    // Only fetch students where userId equals the current admin's UID
+    const q = query(studentsCollection, where("userId", "==", currentUser.uid));
     const unsubscribe = onSnapshot(
-      studentsCollection,
+      q,
       (snapshot) => {
         const studentList = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -372,8 +436,7 @@ const ViewStudents = () => {
     );
 
     return () => unsubscribe();
-  }, [db]);
-
+  }, [db, currentUser]);
   // Search functionality: include full name, matricNumber, and nfcTagId
   const handleSearch = (e) => {
     const searchText = e.target.value.toLowerCase();
@@ -428,6 +491,20 @@ const ViewStudents = () => {
     }
   };
 
+  // Handle delete student
+  // const handleDelete = async (id) => {
+  //   try {
+  //     await deleteDoc(doc(db, 'Students', id));
+  //     setAlertMessage('Student deleted successfully');
+  //     setAlertType('success');
+  //   } catch (error) {
+  //     console.error('Error deleting student:', error);
+  //     setAlertMessage('Error deleting student');
+  //     setAlertType('error');
+  //   }
+  // };
+
+    
   // Handle delete student
   const handleDelete = async (id) => {
     try {
@@ -497,7 +574,7 @@ const ViewStudents = () => {
             >
               <Button 
                 icon={<DeleteOutlined />} 
-                style={{ backgroundColor: '#00923f', borderColor: '#00923f', color: '#fff' }}
+                style={{ borderColor: 'red', color: 'red' }}
               />
             </Popconfirm>
           </Tooltip>
