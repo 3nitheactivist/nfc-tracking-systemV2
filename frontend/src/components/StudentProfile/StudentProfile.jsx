@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Avatar, Typography, Tag, Row, Col, Table, Button } from 'antd';
+import { Card, Avatar, Typography, Tag, Row, Col, Table, Button, Alert } from 'antd';
 import { UserOutlined, MailOutlined, PhoneOutlined, IdcardOutlined, CreditCardOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -15,55 +15,111 @@ const StudentProfile = () => {
   const db = getFirestore();
   const [studentData, setStudentData] = useState(null);
   const [examHistory, setExamHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch student data
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
         const studentDoc = await getDoc(doc(db, 'Students', studentId));
         if (studentDoc.exists()) {
           setStudentData(studentDoc.data());
+        } else {
+          setError('Student not found');
         }
       } catch (error) {
         console.error('Error fetching student data:', error);
+        setError('Failed to fetch student data');
+      } finally {
+        setLoading(false);
       }
     };
     fetchStudentData();
   }, [db, studentId]);
 
-  // Fetch exam history (for example, from AttendanceRecords)
+  // Fetch exam history with improved error handling and attendance status
   useEffect(() => {
     const fetchExamHistory = async () => {
       try {
+        setLoading(true);
         const attendanceRef = collection(db, 'AttendanceRecords');
         const q = query(attendanceRef, where('studentId', '==', studentId));
         const querySnapshot = await getDocs(q);
+        
         const historyData = await Promise.all(
           querySnapshot.docs.map(async (docSnap) => {
             const record = docSnap.data();
-            // Optionally, fetch extra exam details from the Exams collection:
-            const examDoc = await getDoc(doc(db, 'Exams', record.examId));
-            const examData = examDoc.exists() ? examDoc.data() : {};
-            return {
-              key: docSnap.id,
-              examName: examData.courseName || 'N/A',
-              date: record.timestamp
-                ? moment(record.timestamp.toDate()).format('MMM DD, YYYY')
-                : 'N/A',
-              status: record.status
-              // score: record.score || 'N/A',
-            };
+            try {
+              const examDoc = await getDoc(doc(db, 'Exams', record.examId));
+              if (!examDoc.exists()) {
+                // Skip records where exam no longer exists
+                return null;
+              }
+              
+              const examData = examDoc.data();
+              const examDate = examData.examDate.toDate();
+              const now = new Date();
+              
+              // Determine attendance status
+              let status = record.status || 'Present';
+              if (examDate < now && !record.timestamp) {
+                status = 'Absent';
+              }
+
+              return {
+                key: docSnap.id,
+                examName: examData.courseName,
+                courseCode: examData.courseCode,
+                date: record.timestamp
+                  ? moment(record.timestamp.toDate()).format('MMM DD, YYYY, h:mm a')
+                  : moment(examDate).format('MMM DD, YYYY, h:mm a'),
+                status: status,
+              };
+            } catch (examError) {
+              console.warn(`Failed to fetch exam details for ${record.examId}:`, examError);
+              return null;
+            }
           })
         );
-        setExamHistory(historyData);
+        
+        // Filter out null values and sort by date
+        const validHistoryData = historyData
+          .filter(record => record !== null)
+          .sort((a, b) => moment(b.date) - moment(a.date));
+        
+        setExamHistory(validHistoryData);
       } catch (error) {
         console.error('Error fetching exam history:', error);
+        setError('Failed to fetch exam history');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchExamHistory();
+
+    if (studentId) {
+      fetchExamHistory();
+    }
   }, [db, studentId]);
 
-  if (!studentData) {
+  if (loading) {
     return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div>
+        <Button 
+          type="primary"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+          style={{ marginBottom: '16px' }}
+        >
+          Back
+        </Button>
+        <Alert message={error} type="error" />
+      </div>
+    );
   }
 
   const columns = [
@@ -71,6 +127,7 @@ const StudentProfile = () => {
       title: 'Exam Name',
       dataIndex: 'examName',
       key: 'examName',
+      render: (text, record) => `${text} (${record.courseCode})`,
     },
     {
       title: 'Date',
@@ -82,7 +139,7 @@ const StudentProfile = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={status === 'Present' ? 'green' : 'red'}>
+        <Tag color={status.toLowerCase() === 'present' ? 'green' : 'red'}>
           {status}
         </Tag>
       ),
@@ -151,7 +208,11 @@ const StudentProfile = () => {
           <Table 
             columns={columns} 
             dataSource={examHistory} 
-            pagination={false}
+            pagination={{
+              pageSize: 5,
+              total: examHistory.length,
+              showTotal: (total) => `Total ${total} records`,
+            }}
           />
         </Card>
       </Card>

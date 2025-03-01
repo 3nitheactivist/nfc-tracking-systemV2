@@ -189,10 +189,8 @@ const AttendanceVerification = () => {
     return () => unsubscribe();
   }, [db, currentUser]);
 
-  // ------------------------------------------------------------------
-  // 3) WebSocket Integration for Scanner Data
-  // ------------------------------------------------------------------
-  useEffect(() => {
+  // Comment out WebSocket integration
+  /*useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8080");
 
     wsRef.current.onopen = () => {
@@ -230,7 +228,32 @@ const AttendanceVerification = () => {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, []);*/
+
+  // Mock scanning system
+  useEffect(() => {
+    if (isScanning) {
+      console.log("Mock scanner activated");
+      // Use a known NFC ID that matches a student in your database
+      scanningTimeoutRef.current = setTimeout(() => {
+        const mockNfcId = '22'; // Use the same ID as your test student
+        console.log("Mock NFC scan:", mockNfcId);
+        
+        if (scanningStateRef.current) {
+          handleNFCRead(mockNfcId);
+        }
+        
+        setIsScanning(false);
+        scanningStateRef.current = false;
+      }, 2000);
+    }
+
+    return () => {
+      if (scanningTimeoutRef.current) {
+        clearTimeout(scanningTimeoutRef.current);
+      }
+    };
+  }, [isScanning]);
 
   // Add this component inside your AttendanceVerification component
   const AuthDebugger = () => {
@@ -274,196 +297,6 @@ const AttendanceVerification = () => {
   // ------------------------------------------------------------------
   // 4) Handle NFC Read (invoked when scanner data is received)
   // ------------------------------------------------------------------
-  // const handleNFCRead = async (tagId) => {
-  //   // Use the ref to get the current exam selection
-  //   if (!selectedExamRef.current) {
-  //     Modal.warning({
-  //       title: "No Exam Selected",
-  //       content: "Please select an exam before scanning.",
-  //     });
-  //     return;
-  //   }
-
-  //   const examOption = examOptions.find((opt) => opt.value === selectedExamRef.current);
-  //   if (examOption && examOption.examDate) {
-  //     const examDate = moment(examOption.examDate.toDate()).startOf("day");
-  //     const today = moment().startOf("day");
-  //     if (!examDate.isSame(today)) {
-  //       Modal.warning({
-  //         title: "Exam Not Scheduled Today",
-  //         content: "The selected exam isn't scheduled for today.",
-  //       });
-  //       return;
-  //     }
-  //   }
-
-  //   try {
-  //     const studentsRef = collection(db, "Students");
-  //     const studentQuery = query(studentsRef, where("nfcTagId", "==", tagId));
-  //     const studentSnapshot = await getDocs(studentQuery);
-  //     if (studentSnapshot.empty) {
-  //       Modal.error({
-  //         title: "Student Not Found",
-  //         content: `No student found with NFC tag: ${tagId}.`,
-  //       });
-  //       return;
-  //     }
-  //     const studentDoc = studentSnapshot.docs[0];
-  //     const studentData = studentDoc.data();
-  //     const fullName = `${studentData.firstName || ""} ${studentData.lastName || ""}`.trim();
-  //     if (!fullName) {
-  //       Modal.error({
-  //         title: "Incomplete Student Data",
-  //         content: "The student record is missing firstName and/or lastName.",
-  //       });
-  //       return;
-  //     }
-  //     const studentRecord = {
-  //       id: studentDoc.id,
-  //       firstName: studentData.firstName,
-  //       lastName: studentData.lastName,
-  //       name: fullName,
-  //       matricNumber: studentData.matricNumber || studentDoc.id,
-  //       nfcTag: tagId,
-  //     };
-
-  //     const attendanceRef = collection(db, "AttendanceRecords");
-  //     const q = query(
-  //       attendanceRef,
-  //       where("examId", "==", selectedExamRef.current),
-  //       where("studentId", "==", studentRecord.id)
-  //     );
-  //     const attendanceSnap = await getDocs(q);
-  //     if (!attendanceSnap.empty) {
-  //       Modal.warning({
-  //         title: "Duplicate Entry",
-  //         content: `${studentRecord.name} has already been marked for this exam.`,
-  //       });
-  //       return;
-  //     }
-
-  //     const newRecord = {
-  //       examId: selectedExamRef.current,
-  //       studentId: studentRecord.id,
-  //       name: studentRecord.name,
-  //       matricNumber: studentRecord.matricNumber,
-  //       timestamp: new Date(),
-  //       status: "present",
-  //       verifiedBy: currentUser.uid,
-  //     };
-  //     await addDoc(collection(db, "AttendanceRecords"), newRecord);
-  //     setCurrentStudent(studentRecord);
-  //     Modal.success({
-  //       title: "Attendance Recorded",
-  //       content: `Successfully recorded attendance for ${studentRecord.name}.`,
-  //     });
-  //   } catch (error) {
-  //     console.error("Error recording attendance:", error);
-  //     Modal.error({
-  //       title: "Error",
-  //       content: "Failed to record attendance.",
-  //     });
-  //   }
-  // };
-  // const handleNFCRead = async (tagId) => {
-  //   if (!selectedExamRef.current) {
-  //     Modal.warning({
-  //       title: "No Exam Selected",
-  //       content: "Please select an exam before scanning.",
-  //     });
-  //     return;
-  //   }
-
-  //   // Validate exam date
-  //   const examOption = examOptions.find((opt) => opt.value === selectedExamRef.current);
-  //   if (examOption && examOption.examDate) {
-  //     const examDate = moment(examOption.examDate.toDate()).startOf("day");
-  //     const today = moment().startOf("day");
-  //     if (!examDate.isSame(today)) {
-  //       Modal.warning({
-  //         title: "Exam Not Scheduled Today",
-  //         content: "The selected exam isn't scheduled for today.",
-  //       });
-  //       return;
-  //     }
-  //   }
-
-  //   if (!currentUser || !currentUser.uid) {
-  //     Modal.error({ title: "Error", content: "User not authenticated." });
-  //     return;
-  //   }
-
-  //   try {
-  //     const studentsRef = collection(db, "Students");
-  //     const studentQuery = query(studentsRef, where("nfcTagId", "==", tagId));
-  //     const studentSnapshot = await getDocs(studentQuery);
-  //     if (studentSnapshot.empty) {
-  //       Modal.error({
-  //         title: "Student Not Found",
-  //         content: `No student found with NFC tag: ${tagId}.`,
-  //       });
-  //       return;
-  //     }
-  //     const studentDoc = studentSnapshot.docs[0];
-  //     const studentData = studentDoc.data();
-  //     const fullName = `${studentData.firstName || ""} ${studentData.lastName || ""}`.trim();
-  //     if (!fullName) {
-  //       Modal.error({
-  //         title: "Incomplete Student Data",
-  //         content: "The student record is missing firstName and/or lastName.",
-  //       });
-  //       return;
-  //     }
-  //     const studentRecord = {
-  //       id: studentDoc.id,
-  //       firstName: studentData.firstName,
-  //       lastName: studentData.lastName,
-  //       name: fullName,
-  //       matricNumber: studentData.matricNumber || studentDoc.id,
-  //       nfcTag: tagId,
-  //     };
-
-  //     const attendanceRef = collection(db, "AttendanceRecords");
-  //     const q = query(
-  //       attendanceRef,
-  //       where("examId", "==", selectedExamRef.current),
-  //       where("studentId", "==", studentRecord.id)
-  //     );
-  //     const attendanceSnap = await getDocs(q);
-  //     if (!attendanceSnap.empty) {
-  //       Modal.warning({
-  //         title: "Duplicate Entry",
-  //         content: `${studentRecord.name} has already been marked for this exam.`,
-  //       });
-  //       return;
-  //     }
-
-  //     const newRecord = {
-  //       examId: selectedExamRef.current,
-  //       studentId: studentRecord.id,
-  //       name: studentRecord.name,
-  //       matricNumber: studentRecord.matricNumber,
-  //       timestamp: new Date(),
-  //       status: "present",
-  //       verifiedBy: currentUser.uid, // ensure this is exactly the same as request.auth.uid
-  //     };
-
-  //     console.log("New Attendance Record:", newRecord);
-
-  //     await addDoc(collection(db, "AttendanceRecords"), newRecord);
-  //     setCurrentStudent(studentRecord);
-  //     Modal.success({
-  //       title: "Attendance Recorded",
-  //       content: `Successfully recorded attendance for ${studentRecord.name}.`,
-  //     });
-  //   } catch (error) {
-  //     console.error("Error recording attendance:", error);
-  //     Modal.error({
-  //       title: "Error",
-  //       content: "Failed to record attendance.",
-  //     });
-  //   }
-  // };
   const handleNFCRead = async (tagId) => {
     if (!selectedExamRef.current) {
       Modal.warning({
@@ -473,30 +306,7 @@ const AttendanceVerification = () => {
       return;
     }
 
-    // Debug authentication state
-    console.log("Authentication state when scanning:", {
-      isAuthenticated: !!currentUser,
-      uid: currentUser?.uid,
-      email: currentUser?.email,
-    });
-
-    // Validate exam date
-    const examOption = examOptions.find(
-      (opt) => opt.value === selectedExamRef.current
-    );
-    if (examOption && examOption.examDate) {
-      const examDate = moment(examOption.examDate.toDate()).startOf("day");
-      const today = moment().startOf("day");
-      if (!examDate.isSame(today)) {
-        Modal.warning({
-          title: "Exam Not Scheduled Today",
-          content: "The selected exam isn't scheduled for today.",
-        });
-        return;
-      }
-    }
-
-    // Ensure user is authenticated before proceeding
+    // Ensure user is authenticated
     if (!currentUser || !currentUser.uid) {
       Modal.error({
         title: "Authentication Error",
@@ -506,143 +316,73 @@ const AttendanceVerification = () => {
     }
 
     try {
+      console.log("Starting attendance verification with:", {
+        tagId,
+        examId: selectedExamRef.current,
+        verifierUid: currentUser.uid
+      });
+
       // Find student by NFC tag ID
       const studentsRef = collection(db, "Students");
       const studentQuery = query(studentsRef, where("nfcTagId", "==", tagId));
       const studentSnapshot = await getDocs(studentQuery);
 
-      console.log(`Searching for student with NFC tag: ${tagId}`);
-      console.log(`Found ${studentSnapshot.size} matching students`);
-
       if (studentSnapshot.empty) {
         Modal.error({
           title: "Student Not Found",
-          content: `No student found with NFC tag: ${tagId}.`,
+          content: `No student found with NFC tag: ${tagId}`,
         });
         return;
       }
 
       const studentDoc = studentSnapshot.docs[0];
       const studentData = studentDoc.data();
-      console.log("Found student data:", studentData);
 
-      const fullName = `${studentData.firstName || ""} ${
-        studentData.lastName || ""
-      }`.trim();
-
-      if (!fullName) {
-        Modal.error({
-          title: "Incomplete Student Data",
-          content: "The student record is missing firstName and/or lastName.",
-        });
-        return;
-      }
-
-      const studentRecord = {
-        id: studentDoc.id,
-        firstName: studentData.firstName,
-        lastName: studentData.lastName,
-        name: fullName,
-        matricNumber: studentData.matricNumber || studentDoc.id,
-        nfcTag: tagId,
-      };
-
-      console.log("Prepared student record:", studentRecord);
-
-      // Check for duplicate attendance record
-      const attendanceRef = collection(db, "AttendanceRecords");
-      const q = query(
-        attendanceRef,
-        where("examId", "==", selectedExamRef.current),
-        where("studentId", "==", studentRecord.id)
-      );
-
-      const attendanceSnap = await getDocs(q);
-      console.log(`Found ${attendanceSnap.size} existing attendance records`);
-
-      if (!attendanceSnap.empty) {
-        Modal.warning({
-          title: "Duplicate Entry",
-          content: `${studentRecord.name} has already been marked for this exam.`,
-        });
-        return;
-      }
-
-      // Store UID in a local variable to ensure consistency
-      const verifierUid = currentUser.uid;
-      console.log("Current User UID for verification:", verifierUid);
-
-      // Create new attendance record with current user's UID
+      // Create new attendance record
       const newRecord = {
         examId: selectedExamRef.current,
-        studentId: studentRecord.id,
-        name: studentRecord.name,
-        matricNumber: studentRecord.matricNumber,
+        studentId: studentDoc.id,
+        name: `${studentData.firstName} ${studentData.lastName}`.trim(),
+        matricNumber: studentData.matricNumber || studentDoc.id,
         timestamp: new Date(),
         status: "present",
-        verifiedBy: verifierUid,
+        verifiedBy: currentUser.uid,
+        // Add these fields for better tracking
+        nfcTagId: tagId,
+        createdAt: new Date(),
       };
 
-      console.log("Creating attendance record:", JSON.stringify(newRecord));
+      console.log("Attempting to create attendance record:", newRecord);
 
-      try {
-        // Try adding the document to Firestore
-        const docRef = await addDoc(
-          collection(db, "AttendanceRecords"),
-          newRecord
-        );
-        console.log("Document written with ID: ", docRef.id);
+      const docRef = await addDoc(collection(db, "AttendanceRecords"), newRecord);
+      console.log("Successfully created attendance record with ID:", docRef.id);
 
-        // Update UI state
-        setCurrentStudent(studentRecord);
+      Modal.success({
+        title: "Attendance Recorded",
+        content: `Successfully recorded attendance for ${newRecord.name}`,
+      });
 
-        Modal.success({
-          title: "Attendance Recorded",
-          content: `Successfully recorded attendance for ${studentRecord.name}.`,
-        });
-      } catch (innerError) {
-        console.error("Specific document creation error:", innerError);
-
-        // Try with a simpler document to identify permission issues
-        try {
-          console.log("Trying with a minimal test document...");
-          const testDoc = {
-            test: true,
-            verifiedBy: verifierUid,
-            timestamp: new Date(),
-          };
-          await addDoc(collection(db, "AttendanceRecords"), testDoc);
-          console.log("Test document created successfully");
-
-          // If this works but the original didn't, it's a data format issue
-          Modal.error({
-            title: "Data Format Error",
-            content:
-              "There's an issue with the attendance record format. Please check the console for details.",
-          });
-        } catch (testError) {
-          console.error("Test document creation failed:", testError);
-          Modal.error({
-            title: "Permission Error",
-            content: `Authentication or permission issue: ${testError.message}`,
-          });
-        }
-      }
     } catch (error) {
-      console.error("Error in overall attendance process:", error);
+      console.error("Detailed error in attendance process:", {
+        error: error.message,
+        code: error.code,
+        details: error
+      });
       Modal.error({
         title: "Error",
         content: `Failed to record attendance: ${error.message}`,
       });
     }
   };
-  // ------------------------------------------------------------------
-  // 5) Toggle Scanner: Start scanning and set a 20-second timeout
-  // ------------------------------------------------------------------
+
+  // Toggle scanner with mock functionality
   const toggleScanner = () => {
     if (!isScanning) {
       setIsScanning(true);
       scanningStateRef.current = true;
+      message.info("Mock scanner activated - simulating NFC scan...");
+      
+      // Set timeout for scanner
       scanningTimeoutRef.current = setTimeout(() => {
         setIsScanning(false);
         scanningStateRef.current = false;
@@ -656,6 +396,7 @@ const AttendanceVerification = () => {
         clearTimeout(scanningTimeoutRef.current);
         scanningTimeoutRef.current = null;
       }
+      message.info("Scanner deactivated");
     }
   };
 
@@ -697,6 +438,7 @@ const AttendanceVerification = () => {
       attendanceRecords.some((record) => record.examId === option.value)
     );
 
+    // Get available dates only when an exam is selected
     const availableDates = filterExam
       ? Array.from(
           new Set(
@@ -713,21 +455,22 @@ const AttendanceVerification = () => {
         )
       : [];
 
-    let filteredRecords = attendanceRecords;
+    // Filter records based on selected exam and date
+    let filteredRecords = [];
     if (filterExam) {
-      filteredRecords = filteredRecords.filter(
+      filteredRecords = attendanceRecords.filter(
         (record) => record.examId === filterExam
       );
-    }
-    if (filterDate) {
-      filteredRecords = filteredRecords.filter((record) => {
-        const recordDate = moment(
-          record.timestamp && record.timestamp.toDate
-            ? record.timestamp.toDate()
-            : record.timestamp
-        ).format("MMM DD, YYYY");
-        return recordDate === filterDate;
-      });
+      if (filterDate) {
+        filteredRecords = filteredRecords.filter((record) => {
+          const recordDate = moment(
+            record.timestamp && record.timestamp.toDate
+              ? record.timestamp.toDate()
+              : record.timestamp
+          ).format("MMM DD, YYYY");
+          return recordDate === filterDate;
+        });
+      }
     }
 
     return (
@@ -745,12 +488,13 @@ const AttendanceVerification = () => {
         <div style={styles.filterRow}>
           <Select
             style={{ flex: 1 }}
-            placeholder="Filter by Exam Course"
+            placeholder="Select Course/Exam"
             value={filterExam}
             onChange={(value) => {
               setFilterExam(value);
               setFilterDate(null);
             }}
+            allowClear
           >
             {examFilterOptions.map((exam) => (
               <Option key={exam.value} value={exam.value}>
@@ -761,9 +505,10 @@ const AttendanceVerification = () => {
           {filterExam && (
             <Select
               style={{ flex: 1 }}
-              placeholder="Filter by Date"
+              placeholder="Select Date"
               value={filterDate}
               onChange={(value) => setFilterDate(value)}
+              allowClear
             >
               {availableDates.map((date) => (
                 <Option key={date} value={date}>
@@ -773,16 +518,42 @@ const AttendanceVerification = () => {
             </Select>
           )}
         </div>
-        <Table dataSource={filteredRecords} columns={columns} rowKey="id" />
+
+        {!filterExam ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <Alert
+              message="Please select a course to view attendance history"
+              type="info"
+              showIcon
+            />
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <Alert
+              message="No attendance records found for the selected criteria"
+              type="warning"
+              showIcon
+            />
+          </div>
+        ) : (
+          <Table 
+            dataSource={filteredRecords} 
+            columns={columns} 
+            rowKey="id"
+            pagination={{
+              pageSize: 5,
+              total: filteredRecords.length,
+              showTotal: (total) => `Total ${total} records`,
+            }}
+          />
+        )}
       </Modal>
     );
   };
 
   return (
     <Layout>
-      <Content
-        style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}
-      >
+      <Content style={styles.container}>
         <Button onClick={handleBack} style={{ marginBottom: "20px" }}>
           Back
         </Button>
@@ -820,7 +591,6 @@ const AttendanceVerification = () => {
               placeholder="Select Exam"
               onChange={(value) => {
                 setSelectedExam(value);
-                // Update the ref with the new value
                 selectedExamRef.current = value;
               }}
               value={selectedExam}
@@ -834,8 +604,8 @@ const AttendanceVerification = () => {
 
             <Badge
               status={isScanning ? "processing" : "default"}
-              text={isScanning ? "Scanner Active" : "Scanner Inactive"}
-              style={{ marginBottom: "16px" }}
+              text={isScanning ? "Mock Scanner Active" : "Scanner Inactive"}
+              style={styles.statusBadge}
             />
 
             <div>
@@ -843,9 +613,9 @@ const AttendanceVerification = () => {
                 type="primary"
                 icon={<ScanOutlined />}
                 onClick={toggleScanner}
-                disabled={!nfcSupported || !selectedExam}
+                disabled={!selectedExam}
               >
-                {isScanning ? "Stop Scanning" : "Start Scanning"}
+                {isScanning ? "Stop Scanning" : "Start Mock Scanning"}
               </Button>
             </div>
 
@@ -855,7 +625,7 @@ const AttendanceVerification = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 style={{ marginTop: "20px" }}
               >
-                <Spin tip="Waiting for scanner data..." />
+                <Spin tip="Simulating NFC scan..." />
               </motion.div>
             )}
 

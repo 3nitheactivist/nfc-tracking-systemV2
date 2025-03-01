@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -49,7 +48,8 @@ const HomeScreen = () => {
     const examsQuery = query(
       collection(db, "Exams"),
       where("createdBy", "==", currentUser.uid),
-      orderBy("examDate", "asc")
+      orderBy("examDate", "asc"),
+      limit(5)
     );
     const unsubscribeExams = onSnapshot(examsQuery, (querySnapshot) => {
       const examsData = [];
@@ -152,7 +152,7 @@ const HomeScreen = () => {
               >
                 {upcomingExams.length > 0 ? (
                   <Timeline
-                    items={upcomingExams.map((exam) => ({
+                    items={upcomingExams.slice(0, 5).map((exam) => ({
                       color: "green",
                       children: (
                         <div>

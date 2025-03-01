@@ -96,43 +96,19 @@ const TakeAttendance = () => {
     return () => unsubscribe();
   }, [selectedCourseId, attendanceWindowHours]);
 
-  // --- Establish WebSocket connection when the scanner dialog is open ---
+  // Mock fingerprint scanning
   useEffect(() => {
     if (scannerDialogOpen) {
-      const ws = new WebSocket("ws://localhost:8080");
+      // Simulate fingerprint scanning with a random ID after 2 seconds
+      const timer = setTimeout(() => {
+        const mockFingerprintID = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        console.log("Mock fingerprint scan:", mockFingerprintID);
+        setFingerprintInput(mockFingerprintID);
+      }, 2000);
 
-      ws.onopen = () => {
-        console.log("Connected to fingerprint scanner server");
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.fingerprintID) {
-            console.log("Received fingerprint ID:", data.fingerprintID);
-            setFingerprintInput(data.fingerprintID);
-          }
-        } catch (error) {
-          console.error("Error parsing fingerprint data:", error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-
-      return () => {
-        ws.close();
-      };
+      return () => clearTimeout(timer);
     }
   }, [scannerDialogOpen]);
-
-  // --- Automatically mark attendance when a fingerprint is received ---
-  useEffect(() => {
-    if (scannerDialogOpen && fingerprintInput.trim() && !loading) {
-      handleFingerprintInput();
-    }
-  }, [fingerprintInput, scannerDialogOpen, loading]);
 
   // --- Handle fingerprint input and mark attendance with optimistic update ---
   const handleFingerprintInput = async () => {
@@ -145,20 +121,12 @@ const TakeAttendance = () => {
       setLoading(true);
       setError(null);
 
-      // Query the global "students" collection by fingerprintID
-      const studentsRef = collection(db, "students");
-      const studentQuery = query(
-        studentsRef,
-        where("fingerprintID", "==", fingerprintInput)
-      );
-      const studentSnap = await getDocs(studentQuery);
-      if (studentSnap.empty) {
-        setError("No student found with this fingerprint ID.");
-        setFingerprintInput("");
-        setScannerDialogOpen(false);
-        return;
-      }
-      const studentData = studentSnap.docs[0].data();
+      // Mock student data for testing
+      const mockStudentData = {
+        fingerprintID: fingerprintInput,
+        name: `Test Student ${fingerprintInput}`,
+        matricNumber: `MAT${fingerprintInput}`,
+      };
 
       // Check if attendance is already marked for this student in the recent time window
       const startTime = Timestamp.fromDate(
@@ -180,33 +148,32 @@ const TakeAttendance = () => {
         return;
       }
 
-      // Add a new attendance record and get its reference
+      // Add a new attendance record
       const docRef = await addDoc(attendanceRef, {
         courseID: selectedCourseId,
-        fingerprintID: studentData.fingerprintID,
-        name: studentData.name,
-        matricNumber: studentData.matricNumber,
+        fingerprintID: mockStudentData.fingerprintID,
+        name: mockStudentData.name,
+        matricNumber: mockStudentData.matricNumber,
         timeMarked: Timestamp.now(),
       });
 
-      // Optimistically update the local attendance records immediately
+      // Optimistically update the local attendance records
       const newRecord = {
         id: docRef.id,
         courseID: selectedCourseId,
-        fingerprintID: studentData.fingerprintID,
-        name: studentData.name,
-        matricNumber: studentData.matricNumber,
+        fingerprintID: mockStudentData.fingerprintID,
+        name: mockStudentData.name,
+        matricNumber: mockStudentData.matricNumber,
         timeMarked: Timestamp.now(),
       };
       setAttendanceRecords((prevRecords) => [newRecord, ...prevRecords]);
 
       setAttendanceStatus({
         success: true,
-        message: `Attendance marked for ${studentData.name}`,
-        student: studentData,
+        message: `Attendance marked for ${mockStudentData.name}`,
+        student: mockStudentData,
       });
 
-      // Clear fingerprint input and close the scanner dialog
       setFingerprintInput("");
       setScannerDialogOpen(false);
     } catch (error) {
@@ -296,26 +263,30 @@ const TakeAttendance = () => {
         open={scannerDialogOpen}
         onClose={() => setScannerDialogOpen(false)}
       >
-        <DialogTitle>Fingerprint Attendance</DialogTitle>
+        <DialogTitle>Mock Fingerprint Scanner</DialogTitle>
         <DialogContent>
-          {/* Display the fingerprint ID (auto-populated) */}
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Fingerprint ID"
-            fullWidth
-            variant="outlined"
-            value={fingerprintInput}
-            onChange={(e) => setFingerprintInput(e.target.value)}
-            disabled
-          />
-          {loading && <CircularProgress />}
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            {loading ? (
+              <CircularProgress />
+            ) : (
+              <div>
+                <p>Simulating fingerprint scan...</p>
+                <TextField
+                  margin="dense"
+                  label="Fingerprint ID"
+                  fullWidth
+                  variant="outlined"
+                  value={fingerprintInput}
+                  onChange={(e) => setFingerprintInput(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setScannerDialogOpen(false)} color="secondary">
             Cancel
           </Button>
-          {/* Auto submission—no Submit button */}
         </DialogActions>
       </Dialog>
 

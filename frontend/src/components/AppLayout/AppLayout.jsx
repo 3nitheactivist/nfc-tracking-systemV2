@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import PropTypes from 'prop-types';
 import logo from "../../assets/images/logoWhite.png";
 
 const { Header: AntHeader } = Layout;
@@ -207,6 +208,10 @@ const AppLayout = ({ children }) => {
       </Layout.Content>
     </Layout>
   );
+};
+
+AppLayout.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export { Header, Sidebar, AppLayout };
