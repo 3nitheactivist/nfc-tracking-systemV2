@@ -29,7 +29,7 @@ function LoginUser() {
     try {
       // Authenticate user with Firebase
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard"); // Navigate to the dashboard on success
+      navigate("/students"); // Navigate to the students page on success
     } catch (err) {
       if (err.code === "auth/wrong-password") {
         setError("Incorrect password. Please try again.");

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
-import { auth } from "../../utils/firebase/firebase"; // Adjust path as needed
+import { auth } from "../firebase/firebase"; // Adjust path as needed
 import { onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
 import PulseLoader from "react-spinners/PulseLoader"; // Import the spinner
 

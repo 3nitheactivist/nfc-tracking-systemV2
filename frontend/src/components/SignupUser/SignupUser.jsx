@@ -47,7 +47,7 @@ const SignupUser  = () => {
 
         // Wait 3 seconds before navigating
         setTimeout(() => {
-            navigate("/dashboard", { replace: true });
+            navigate("/students", { replace: true });
         }, 3000); // 3-second delay
     } catch (err) {
         console.error("Error during registration:", err.message);

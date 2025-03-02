@@ -54,7 +54,12 @@ import {
   FilterOutlined, 
   SettingOutlined, 
   UserOutlined, 
-  LogoutOutlined 
+  LogoutOutlined,
+  BookOutlined,
+  MedicineBoxOutlined,
+  SafetyOutlined,
+  ApartmentOutlined,
+  ScheduleOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -155,35 +160,47 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           style={{ borderRight: 0 }}
           items={[
             {
-              key: 'home',
+              key: 'students management',
               icon: <HomeOutlined />,
-              label: 'Home',
-              onClick: () => handleNavigation('/dashboard')
+              label: 'Students Management',
+              onClick: () => handleNavigation('/students')
             },
             {
-              key: 'filter',
-              icon: <FilterOutlined />,
-              label: 'Filter',
-              onClick: () => handleNavigation('#')
+              key: 'library',
+              icon: <BookOutlined />,
+              label: 'Library Access',
+              onClick: () => handleNavigation('/library')
             },
             {
-              key: 'settings',
-              icon: <SettingOutlined />,
-              label: 'Settings',
-              onClick: () => handleNavigation('#')
+              key: 'medical',
+              icon: <MedicineBoxOutlined />,
+              label: 'Medical Records',
+              onClick: () => handleNavigation('/medical')
             },
             {
-              key: 'profile',
-              icon: <UserOutlined />,
-              label: 'Profile',
-              onClick: () => handleNavigation('/profile')
+              key: 'campus',
+              icon: <SafetyOutlined />,
+              label: 'Campus Access',
+              onClick: () => handleNavigation('/campus')
+            },
+            {
+              key: 'hostel',
+              icon: <ApartmentOutlined />,
+              label: 'Hostel Management',
+              onClick: () => handleNavigation('/hostel')
+            },
+            {
+              key: 'attendance',
+              icon: <ScheduleOutlined />,
+              label: 'Class Attendance',
+              onClick: () => handleNavigation('/attendance')
             },
             {
               key: 'logout',
               icon: <LogoutOutlined />,
               label: 'Log Out',
               onClick: handleLogout
-            }
+            },
           ]}
         />
       </motion.div>

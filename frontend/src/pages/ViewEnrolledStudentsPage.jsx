@@ -1,0 +1,302 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Table, 
+  Input, 
+  Button, 
+  Space, 
+  Tooltip, 
+  Tag, 
+  Drawer, 
+  Descriptions,
+  message,
+  Popconfirm
+} from 'antd';
+import { 
+  SearchOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  EyeOutlined,
+  UserOutlined
+} from '@ant-design/icons';
+import { motion } from 'framer-motion';
+import { studentService } from '../utils/firebase/studentService';
+import dayjs from 'dayjs';
+
+const ViewEnrolledStudentsPage = () => {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [tableParams, setTableParams] = useState({
+    pagination: {
+      current: 1,
+      pageSize: 10,
+      total: 0,
+    },
+  });
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const allStudents = await studentService.getAllStudents();
+      setStudents(allStudents);
+      setTableParams({
+        ...tableParams,
+        pagination: {
+          ...tableParams.pagination,
+          total: allStudents.length,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      message.error('Failed to load students');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTableChange = (pagination) => {
+    setTableParams({
+      pagination,
+    });
+  };
+
+  const handleSearch = (value) => {
+    setSearchText(value);
+  };
+
+  const viewStudentDetails = (student) => {
+    setSelectedStudent(student);
+    setDrawerVisible(true);
+  };
+
+  const handleDeleteStudent = async (studentId) => {
+    try {
+      await studentService.deleteStudent(studentId);
+      message.success('Student deleted successfully');
+      fetchStudents();
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      message.error('Failed to delete student');
+    }
+  };
+
+  const filterStudents = () => {
+    if (!searchText) return students;
+    
+    return students.filter(student => 
+      student.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchText.toLowerCase()) ||
+      student.schoolId.toLowerCase().includes(searchText.toLowerCase()) ||
+      student.phone.includes(searchText)
+    );
+  };
+
+  const columns = [
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text) => <a>{text}</a>,
+      sorter: (a, b) => a.name.localeCompare(b.name),
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: 'Phone',
+      dataIndex: 'phone',
+      key: 'phone',
+    },
+    {
+      title: 'School ID',
+      dataIndex: 'schoolId',
+      key: 'schoolId',
+    },
+    {
+      title: 'NFC Tag ID',
+      dataIndex: 'nfcTagId',
+      key: 'nfcTagId',
+      ellipsis: true,
+    },
+    {
+      title: 'Enrollment Date',
+      dataIndex: 'enrollmentDate',
+      key: 'enrollmentDate',
+      render: (date) => date ? dayjs(date.toDate()).format('MMM D, YYYY') : 'N/A',
+      sorter: (a, b) => {
+        if (!a.enrollmentDate || !b.enrollmentDate) return 0;
+        return a.enrollmentDate.toDate() - b.enrollmentDate.toDate();
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <Tag color={status === 'active' ? 'green' : 'red'}>
+          {status?.toUpperCase() || 'N/A'}
+        </Tag>
+      ),
+      filters: [
+        { text: 'Active', value: 'active' },
+        { text: 'Inactive', value: 'inactive' },
+      ],
+      onFilter: (value, record) => record.status === value,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size="middle">
+          <Tooltip title="View Details">
+            <Button 
+              icon={<EyeOutlined />} 
+              onClick={() => viewStudentDetails(record)} 
+            />
+          </Tooltip>
+          {/* <Tooltip title="Edit">
+            <Button icon={<EditOutlined />} />
+          </Tooltip> */}
+          <Tooltip title="Delete">
+            <Popconfirm
+              title="Are you sure you want to delete this student?"
+              onConfirm={() => handleDeleteStudent(record.id)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Space direction="vertical" style={{ width: '100%' }}>
+        <Space style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="Search students..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => handleSearch(e.target.value)}
+            style={{ width: 300 }}
+            allowClear
+          />
+          <Button 
+            type="primary" 
+            onClick={fetchStudents}
+            loading={loading}
+          >
+            Refresh
+          </Button>
+        </Space>
+
+        <Table
+          columns={columns}
+          dataSource={filterStudents()}
+          rowKey="id"
+          loading={loading}
+          pagination={tableParams.pagination}
+          onChange={handleTableChange}
+          size="middle"
+          scroll={{ x: true }}
+        />
+
+        <Drawer
+          title="Student Details"
+          placement="right"
+          onClose={() => setDrawerVisible(false)}
+          open={drawerVisible}
+          width={500}
+        >
+          {selectedStudent && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Space
+                direction="vertical"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: 24
+                }}
+              >
+                <div
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    background: '#f0f2f5',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 16
+                  }}
+                >
+                  <UserOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                </div>
+                <h2>{selectedStudent.name}</h2>
+                <Tag color={selectedStudent.status === 'active' ? 'green' : 'red'}>
+                  {selectedStudent.status?.toUpperCase() || 'N/A'}
+                </Tag>
+              </Space>
+
+              <Descriptions bordered column={1}>
+                <Descriptions.Item label="Email">{selectedStudent.email}</Descriptions.Item>
+                <Descriptions.Item label="Phone">{selectedStudent.phone}</Descriptions.Item>
+                <Descriptions.Item label="School ID">{selectedStudent.schoolId}</Descriptions.Item>
+                <Descriptions.Item label="NFC Tag ID">{selectedStudent.nfcTagId}</Descriptions.Item>
+                <Descriptions.Item label="Enrollment Date">
+                  {selectedStudent.enrollmentDate 
+                    ? dayjs(selectedStudent.enrollmentDate.toDate()).format('MMMM D, YYYY')
+                    : 'N/A'}
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Descriptions bordered column={1} style={{ marginTop: 24 }}>
+                <Descriptions.Item label="Library Access">
+                  <Tag color={selectedStudent.permissions?.library ? 'green' : 'red'}>
+                    {selectedStudent.permissions?.library ? 'ENABLED' : 'DISABLED'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Medical Access">
+                  <Tag color={selectedStudent.permissions?.medical ? 'green' : 'red'}>
+                    {selectedStudent.permissions?.medical ? 'ENABLED' : 'DISABLED'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Campus Access">
+                  <Tag color={selectedStudent.permissions?.campus ? 'green' : 'red'}>
+                    {selectedStudent.permissions?.campus ? 'ENABLED' : 'DISABLED'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Hostel Access">
+                  <Tag color={selectedStudent.permissions?.hostel ? 'green' : 'red'}>
+                    {selectedStudent.permissions?.hostel ? 'ENABLED' : 'DISABLED'}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            </motion.div>
+          )}
+        </Drawer>
+      </Space>
+    </motion.div>
+  );
+};
+
+export default ViewEnrolledStudentsPage; 

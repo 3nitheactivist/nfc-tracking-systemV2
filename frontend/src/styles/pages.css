@@ -1,0 +1,52 @@
+.page-container {
+    padding: 24px;
+  }
+  
+  .page-container .ant-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .page-container .ant-tabs {
+    margin-top: -16px;
+  }
+  
+  .page-container .ant-card-head-title {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  
+  .page-container .ant-tabs-nav {
+    margin-bottom: 24px;
+  }
+  
+  .page-container .ant-row {
+    margin-bottom: 24px;
+  }
+
+  /* Campus Access Styles */
+.campus-access-scanner .scanner-card {
+  min-height: 300px;
+}
+
+.campus-access-scanner .events-card {
+  min-height: 300px;
+}
+
+.event-list {
+  padding-left: 0;
+  list-style-type: none;
+}
+
+.event-list li {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.access-history-container .ant-table-wrapper {
+  margin-top: 16px;
+}
+
+.campus-dashboard-container .ant-card {
+  height: 100%;
+}
