@@ -13,7 +13,7 @@ const LoadingScreen = ({ delay = 3000 }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setTimeout(() => {
-        navigate(user ? "/dashboard" : "/login");
+        navigate(user ? "/students" : "/login");
       }, delay);
     });
 

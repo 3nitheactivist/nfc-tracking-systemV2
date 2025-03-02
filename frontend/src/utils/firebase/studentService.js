@@ -219,5 +219,28 @@ export const studentService = {
       console.error('Error deleting student:', error);
       throw error;
     }
+  },
+
+  // Function to find student by NFC Tag ID
+  async findStudentByNfcTagId(nfcTagId) {
+    try {
+      console.log(`Looking for student with NFC Tag ID: ${nfcTagId}`);
+      
+      const studentsRef = collection(db, 'students');
+      const q = query(studentsRef, where('nfcTagId', '==', nfcTagId));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const student = querySnapshot.docs[0].data();
+        console.log('Student found:', student);
+        return student;
+      }
+      
+      console.log('No student found with NFC Tag ID');
+      return null;
+    } catch (error) {
+      console.error('Error finding student by NFC Tag ID:', error);
+      throw error;
+    }
   }
 };

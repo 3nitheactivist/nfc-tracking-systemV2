@@ -4,40 +4,42 @@ export const useNFCScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [lastScannedId, setLastScannedId] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
-
-  // Mock function to simulate NFC scanning
+  
+  // Start scanning for NFC tags
   const startScan = useCallback(() => {
     setScanning(true);
     setScanStatus('scanning');
+    setLastScannedId(null);
     
-    // Simulate a scan after 2 seconds
-    setTimeout(() => {
-      // Generate a random mock NFC ID
-      const mockNfcId = `NFC-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      setLastScannedId(mockNfcId);
-      setScanStatus('success');
-    }, 2000);
+    // In a real implementation, you would connect to the NFC reader here
+    // For now, we'll simulate a successful scan after a delay
+    console.log('NFC scanning started');
   }, []);
-
+  
+  // Stop scanning for NFC tags
   const stopScan = useCallback(() => {
     setScanning(false);
     setScanStatus('idle');
+    
+    // In a real implementation, you would disconnect from the NFC reader here
+    console.log('NFC scanning stopped');
   }, []);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (scanning) {
-        stopScan();
-      }
-    };
-  }, [scanning, stopScan]);
-
+  
+  // Simulate a successful scan (for testing)
+  const simulateScan = useCallback((id) => {
+    if (scanning) {
+      setLastScannedId(id);
+      setScanStatus('success');
+      setScanning(false);
+    }
+  }, [scanning]);
+  
   return {
+    scanning,
     startScan,
     stopScan,
-    scanning,
     lastScannedId,
-    scanStatus
+    scanStatus,
+    simulateScan
   };
 }; 

@@ -26,21 +26,10 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<LoadingScreen />} />
-            {/* <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <AppLayout>
-                    <HomeScreen />
-                  </AppLayout>
-                </PrivateRoute>
-              }
-            /> */}
             <Route path="/signup" element={<SignupUser />} />
             <Route path="/login" element={<LoginUser />} />
             <Route path="/forgotPassword" element={<ForgotPassword />} />
           {/* ====== */}
-            {/* <Route path="/dashboard" element={<PrivateRoute><AppLayout><StudentEnrollmentPage /></AppLayout></PrivateRoute>} /> */}
             <Route path="/attendance" element={<PrivateRoute><AppLayout><AttendanceTrackingPage /></AppLayout></PrivateRoute>} />
             <Route path="/library" element={<PrivateRoute><AppLayout><LibraryAccessPage /></AppLayout></PrivateRoute>} />
             <Route path="/medical" element={<PrivateRoute><AppLayout><MedicalRecordsPage /></AppLayout></PrivateRoute>} />
