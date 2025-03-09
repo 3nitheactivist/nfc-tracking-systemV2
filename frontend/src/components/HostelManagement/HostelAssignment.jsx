@@ -141,13 +141,30 @@ function HostelAssignment() {
     try {
       setLoading(true);
       
+      // Before saving to Firestore, ensure no undefined values
+      // Option 1: Remove undefined values
+      const cleanedValues = Object.fromEntries(
+        Object.entries(values).filter(([_, v]) => v !== undefined)
+      );
+      
+      // Option 2: Replace undefined with null or empty string
+      const sanitizedValues = {
+        ...cleanedValues,
+        // Replace undefined description with empty string
+        description: cleanedValues.description || '',
+        // Check other fields that might be undefined
+        name: cleanedValues.name || '',
+        location: cleanedValues.location || '',
+        // Add any other fields that might be undefined
+      };
+      
       if (editingHostel) {
         // Update existing hostel
-        await hostelService.updateHostel(editingHostel.id, values);
+        await hostelService.updateHostel(editingHostel.id, sanitizedValues);
         message.success('Hostel updated successfully');
       } else {
         // Add new hostel
-        await hostelService.addHostel(values);
+        await hostelService.addHostel(sanitizedValues);
         message.success('Hostel added successfully');
       }
       

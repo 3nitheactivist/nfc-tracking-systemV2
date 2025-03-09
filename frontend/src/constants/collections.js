@@ -1,6 +1,6 @@
 export const COLLECTIONS = {
   STUDENTS: 'students',
-  LIBRARY_ACCESS: 'LibraryAccessRecords',
+  LIBRARY_ACCESS_COLLECTION: 'LibraryAccessRecords',
   CLASS_ATTENDANCE: 'ClassAttendanceRecords',
   MEDICAL_RECORDS: 'MedicalRecords',
   CAMPUS_ACCESS: 'CampusAccessRecords',

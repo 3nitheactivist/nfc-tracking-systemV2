@@ -77,12 +77,15 @@ const ViewEnrolledStudentsPage = () => {
 
   const handleDeleteStudent = async (studentId) => {
     try {
-      await studentService.deleteStudent(studentId);
-      message.success('Student deleted successfully');
+      setLoading(true);
+      await studentService.deleteStudentWithRelatedData(studentId);
+      message.success('Student and all related data deleted successfully');
       fetchStudents();
     } catch (error) {
       console.error('Error deleting student:', error);
       message.error('Failed to delete student');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -167,12 +170,19 @@ const ViewEnrolledStudentsPage = () => {
           </Tooltip> */}
           <Tooltip title="Delete">
             <Popconfirm
-              title="Are you sure you want to delete this student?"
+              title="Delete this student?"
+              description="This will delete all related records for this student."
               onConfirm={() => handleDeleteStudent(record.id)}
-              okText="Yes"
-              cancelText="No"
+              okText="Yes, Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
             >
-              <Button danger icon={<DeleteOutlined />} />
+              <Button 
+                danger 
+                icon={<DeleteOutlined />}
+              >
+                Delete
+              </Button>
             </Popconfirm>
           </Tooltip>
         </Space>

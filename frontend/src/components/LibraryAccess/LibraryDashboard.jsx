@@ -25,6 +25,16 @@ import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { libraryService } from '../../utils/firebase/libraryService';
+import { db } from '../../utils/firebase/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy, 
+  limit,
+  Timestamp 
+} from 'firebase/firestore';
 
 const { Title, Text } = Typography;
 
@@ -42,77 +52,276 @@ function LibraryDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Set up real-time listeners
   useEffect(() => {
-    fetchDashboardData();
+    setLoading(true);
+    console.log('Setting up dashboard listeners');
+    
+    // Get current date at midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // MODIFIED: Query for current visitors (looking for check-ins without matching check-outs)
+    const activeVisitorsQuery = query(
+      collection(db, 'LibraryAccessRecords'),
+      where('accessType', '==', 'check-in')
+    );
+    
+    const activeVisitorsUnsubscribe = onSnapshot(
+      activeVisitorsQuery,
+      (snapshot) => {
+        // Since we don't have a status field, we need to count check-ins
+        // that don't have a corresponding check-out
+        const checkIns = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          studentId: doc.data().studentId
+        }));
+
+        // We'll consider a student as "currently visiting" if they have a check-in
+        // but no recent check-out with the same student ID
+        const activeVisitorIds = new Set();
+        checkIns.forEach(record => {
+          activeVisitorIds.add(record.studentId);
+        });
+
+        console.log('Potential active visitors:', activeVisitorIds.size);
+        
+        // Query for check-outs to filter out completed visits
+        const checkOutsQuery = query(
+          collection(db, 'LibraryAccessRecords'),
+          where('accessType', '==', 'check-out')
+        );
+        
+        onSnapshot(checkOutsQuery, (checkOutSnapshot) => {
+          const checkOuts = checkOutSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            studentId: doc.data().studentId
+          }));
+          
+          checkOuts.forEach(record => {
+            const timestamp = record.timestamp?.toDate?.() || new Date(record.timestamp);
+            const isToday = timestamp >= today;
+            
+            // If there's a check-out for today, remove the student from active visitors
+            if (isToday) {
+              activeVisitorIds.delete(record.studentId);
+            }
+          });
+          
+          console.log('Final active visitors:', activeVisitorIds.size);
+          setStatistics(prev => ({
+            ...prev,
+            currentVisitors: activeVisitorIds.size
+          }));
+        });
+      },
+      (error) => {
+        console.error('Error getting active visitors:', error);
+      }
+    );
+    
+    // MODIFIED: Query for today's check-ins
+    const todayCheckInsQuery = query(
+      collection(db, 'LibraryAccessRecords'),
+      where('timestamp', '>=', Timestamp.fromDate(today)),
+      where('accessType', '==', 'check-in')
+    );
+    
+    const todayCheckInsUnsubscribe = onSnapshot(
+      todayCheckInsQuery,
+      (snapshot) => {
+        console.log('Today\'s check-ins snapshot size:', snapshot.size);
+        setStatistics(prev => ({
+          ...prev,
+          totalCheckInsToday: snapshot.size
+        }));
+      },
+      (error) => {
+        console.error('Error getting today\'s check-ins:', error);
+      }
+    );
+    
+    // MODIFIED: Calculate average stay time from check-out records with duration
+    const avgStayTimeQuery = query(
+      collection(db, 'LibraryAccessRecords'),
+      where('accessType', '==', 'check-out'),
+      where('duration', '>', 0)
+    );
+    
+    const avgStayTimeUnsubscribe = onSnapshot(
+      avgStayTimeQuery,
+      (snapshot) => {
+        console.log('Records with duration snapshot size:', snapshot.size);
+        let totalDuration = 0;
+        let count = 0;
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.duration && typeof data.duration === 'number') {
+            totalDuration += data.duration;
+            count++;
+          }
+        });
+        
+        const averageStayTime = count > 0 ? Math.round(totalDuration / count) : 0;
+        console.log(`Average stay time: ${averageStayTime} minutes (from ${count} records)`);
+        
+        setStatistics(prev => ({
+          ...prev,
+          averageStayTime
+        }));
+      },
+      (error) => {
+        console.error('Error getting average stay time:', error);
+      }
+    );
+    
+    // Set up listener for recent activity
+    const recentActivityQuery = query(
+      collection(db, 'LibraryAccessRecords'),
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    );
+    
+    const recentActivityUnsubscribe = onSnapshot(
+      recentActivityQuery,
+      (snapshot) => {
+        console.log('Recent activity snapshot size:', snapshot.size);
+        
+        const activities = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Processing activity record:', doc.id, data);
+          
+          let timestamp;
+          
+          // Handle different timestamp formats
+          if (data.timestamp) {
+            if (typeof data.timestamp.toDate === 'function') {
+              timestamp = data.timestamp.toDate();
+            } else if (data.timestamp.seconds) {
+              timestamp = new Date(data.timestamp.seconds * 1000);
+            } else {
+              timestamp = new Date(data.timestamp);
+            }
+          } else {
+            timestamp = new Date();
+          }
+          
+          return {
+            id: doc.id,
+            name: data.studentName || 'Unknown Student',
+            action: data.accessType || 'check-in',
+            timestamp,
+            studentId: data.studentId
+          };
+        });
+        
+        console.log('Processed activities:', activities);
+        setRecentActivity(activities.slice(0, 5)); // Take only the 5 most recent
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error getting recent activity:', error);
+        setLoading(false);
+      }
+    );
+    
+    // Set up listener for hourly data
+    generateHourlyData();
+    
+    // Cleanup listeners on component unmount
+    return () => {
+      activeVisitorsUnsubscribe();
+      todayCheckInsUnsubscribe();
+      avgStayTimeUnsubscribe();
+      recentActivityUnsubscribe();
+    };
   }, []);
 
+  // Refresh data manually
   const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Fetch real statistics from Firebase
-      const statsData = await libraryService.getStatistics();
-      
-      // Fetch recent activity from Firebase
-      const recentActivityData = await libraryService.getRecentActivity(5);
-      
-      // Process the activity data to match our component's expected format
-      const processedActivity = recentActivityData.map(item => ({
-        id: item.id,
-        name: item.studentName || 'Unknown Student',
-        action: item.accessType || 'check-in',
-        timestamp: item.timestamp ? new Date(item.timestamp.seconds * 1000) : new Date(),
-        avatarUrl: item.studentAvatar || ''
-      }));
-      
-      // Generate hourly usage data based on access records
-      // This would typically come from aggregated Firebase data
-      // For now, we'll use a simplified approach
-      const hourlyData = await generateHourlyData();
-
-      setStatistics(statsData);
-      setRecentActivity(processedActivity);
-      setUsageData(hourlyData);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
+    generateHourlyData();
   };
 
   // Generate hourly data based on access records
   const generateHourlyData = async () => {
     try {
-      // In a real implementation, you would query Firebase for this data
-      // For now, we'll use a simplified approach with the existing data
-      const allAccessRecords = await libraryService.getAccessHistory();
+      // Get today's date at midnight
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      // Initialize hourly buckets (8AM to 6PM)
-      const hours = ['8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM'];
-      const hourlyData = hours.map(hour => ({ hour, visitors: 0 }));
+      // Query for today's check-ins only
+      const todayCheckInsQuery = query(
+        collection(db, 'LibraryAccessRecords'),
+        where('timestamp', '>=', Timestamp.fromDate(today)),
+        where('accessType', '==', 'check-in')
+      );
       
-      // Count visitors per hour
-      allAccessRecords.forEach(record => {
-        if (record.timestamp && record.accessType === 'check-in') {
-          const date = new Date(record.timestamp.seconds * 1000);
-          const hour = date.getHours();
+      // Set up real-time listener for hourly data
+      const hourlyDataUnsubscribe = onSnapshot(
+        todayCheckInsQuery,
+        (snapshot) => {
+          console.log('Hourly data snapshot size:', snapshot.size);
           
-          // Map 24-hour format to our hourly buckets (8AM to 6PM)
-          if (hour >= 8 && hour <= 18) {
-            const index = hour - 8; // 8AM is index 0
-            if (hourlyData[index]) {
-              hourlyData[index].visitors += 1;
+          // Initialize hourly buckets (8AM to 6PM)
+          const hours = ['8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM'];
+          const hourlyData = hours.map(hour => ({ hour, visitors: 0 }));
+          
+          // Count visitors per hour
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.timestamp) {
+              let date;
+              if (typeof data.timestamp.toDate === 'function') {
+                date = data.timestamp.toDate();
+              } else if (data.timestamp.seconds) {
+                date = new Date(data.timestamp.seconds * 1000);
+              } else {
+                date = new Date(data.timestamp);
+              }
+              
+              const hour = date.getHours();
+              
+              // Map 24-hour format to our hourly buckets (8AM to 6PM)
+              if (hour >= 8 && hour <= 18) {
+                const index = hour - 8; // 8AM is index 0
+                if (hourlyData[index]) {
+                  hourlyData[index].visitors += 1;
+                }
+              }
             }
-          }
+          });
+          
+          console.log('Hourly data for chart:', hourlyData);
+          setUsageData(hourlyData);
+        },
+        (error) => {
+          console.error('Error generating hourly data:', error);
+          // Use empty data on error
+          const emptyData = [
+            { hour: '8AM', visitors: 0 },
+            { hour: '9AM', visitors: 0 },
+            { hour: '10AM', visitors: 0 },
+            { hour: '11AM', visitors: 0 },
+            { hour: '12PM', visitors: 0 },
+            { hour: '1PM', visitors: 0 },
+            { hour: '2PM', visitors: 0 },
+            { hour: '3PM', visitors: 0 },
+            { hour: '4PM', visitors: 0 },
+            { hour: '5PM', visitors: 0 },
+            { hour: '6PM', visitors: 0 },
+          ];
+          setUsageData(emptyData);
         }
-      });
+      );
       
-      return hourlyData;
+      // Return the unsubscribe function
+      return hourlyDataUnsubscribe;
     } catch (error) {
-      console.error('Error generating hourly data:', error);
-      // Return default data if there's an error
-      return [
+      console.error('Error setting up hourly data listener:', error);
+      // Use empty data on error
+      const emptyData = [
         { hour: '8AM', visitors: 0 },
         { hour: '9AM', visitors: 0 },
         { hour: '10AM', visitors: 0 },
@@ -125,6 +334,7 @@ function LibraryDashboard() {
         { hour: '5PM', visitors: 0 },
         { hour: '6PM', visitors: 0 },
       ];
+      setUsageData(emptyData);
     }
   };
 
@@ -188,16 +398,6 @@ function LibraryDashboard() {
             />
           </Card>
         </Col>
-        {/* <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Books Issued Today"
-              value={statistics.booksIssued}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col> */}
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -233,18 +433,38 @@ function LibraryDashboard() {
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Recent Activity" style={{ height: '100%' }}>
+            {recentActivity.length > 0 ? (
             <List
               itemLayout="horizontal"
               dataSource={recentActivity}
               renderItem={(item) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar src={item.avatarUrl} icon={<UserOutlined />} />}
+                      avatar={
+                        <Avatar 
+                          style={{ 
+                            backgroundColor: getAvatarColor(item.name), 
+                            color: '#fff' 
+                          }}
+                        >
+                          {getInitials(item.name)}
+                        </Avatar>
+                      }
                     title={item.name}
                     description={
                       <Space>
-                        <Tag color={item.action === 'check-in' ? 'green' : 'check-out' ? 'red' : 'blue'}>
-                          {item.action === 'check-in' ? 'Checked In' : item.action === 'check-out' ? 'Checked Out' : item.action}
+                          <Tag color={
+                            item.action === 'check-in' 
+                              ? 'green' 
+                              : item.action === 'check-out' 
+                                ? 'red' 
+                                : 'blue'
+                          }>
+                            {item.action === 'check-in' 
+                              ? 'Checked In' 
+                              : item.action === 'check-out' 
+                                ? 'Checked Out' 
+                                : item.action}
                         </Tag>
                         <Text type="secondary">{formatTimestamp(item.timestamp)}</Text>
                       </Space>
@@ -253,6 +473,11 @@ function LibraryDashboard() {
                 </List.Item>
               )}
             />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <Text type="secondary">No recent activity</Text>
+              </div>
+            )}
           </Card>
         </Col>
       </Row>
@@ -324,5 +549,45 @@ function findLowestVisitors(data) {
   
   return Math.min(...data.map(item => item.visitors));
 }
+
+// Function to get initials from name
+const getInitials = (name) => {
+  if (!name) return '';
+  
+  // Split the name by spaces and get the first letter of each part
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2); // Limit to 2 characters
+};
+
+// Function to generate a consistent color based on name
+const getAvatarColor = (name) => {
+  if (!name) return '#1890ff'; // Default blue color
+  
+  // Generate a simple hash from the name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Convert hash to a color
+  const colors = [
+    '#1890ff', // Blue
+    '#52c41a', // Green
+    '#faad14', // Yellow
+    '#f5222d', // Red
+    '#722ed1', // Purple
+    '#eb2f96', // Pink
+    '#fa8c16', // Orange
+    '#13c2c2', // Cyan
+    '#2f54eb'  // Geekblue
+  ];
+  
+  // Use the hash to select a color from the array
+  return colors[Math.abs(hash) % colors.length];
+};
 
 export default LibraryDashboard;

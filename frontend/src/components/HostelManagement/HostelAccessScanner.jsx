@@ -186,7 +186,7 @@ function HostelAccessScanner() {
               <div>
                 <div className="student-details">
                   <Title level={4}>{student.name}</Title>
-                  <Text>Student ID: {student.studentId}</Text>
+                  <Text>Student ID: {student.schoolId || student.studentId || 'N/A'}</Text>
                   <div style={{ margin: '16px 0' }}>
                     {student.hostelAssignment ? (
                       <div>

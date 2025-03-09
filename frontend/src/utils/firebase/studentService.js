@@ -10,7 +10,8 @@ import {
   deleteDoc,
   orderBy,
   limit,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../../constants/collections';
 
@@ -240,6 +241,78 @@ export const studentService = {
       return null;
     } catch (error) {
       console.error('Error finding student by NFC Tag ID:', error);
+      throw error;
+    }
+  },
+
+  // Delete student and all related data
+  async deleteStudentWithRelatedData(studentId) {
+    try {
+      const batch = writeBatch(db);
+      
+      // Delete attendance records
+      const attendanceRef = collection(db, 'attendance');
+      const attendanceQuery = query(attendanceRef, where('studentId', '==', studentId));
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+      
+      attendanceSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete hostel assignments
+      const hostelAssignmentsRef = collection(db, 'hostelAssignments');
+      const hostelAssignmentsQuery = query(hostelAssignmentsRef, where('studentId', '==', studentId));
+      const hostelAssignmentsSnapshot = await getDocs(hostelAssignmentsQuery);
+      
+      hostelAssignmentsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete hostel access events
+      const hostelEventsRef = collection(db, 'hostelAccessEvents');
+      const hostelEventsQuery = query(hostelEventsRef, where('studentId', '==', studentId));
+      const hostelEventsSnapshot = await getDocs(hostelEventsQuery);
+      
+      hostelEventsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete library access records
+      const libraryAccessRef = collection(db, 'libraryAccess');
+      const libraryAccessQuery = query(libraryAccessRef, where('studentId', '==', studentId));
+      const libraryAccessSnapshot = await getDocs(libraryAccessQuery);
+      
+      libraryAccessSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete medical records
+      const medicalRecordsRef = collection(db, 'medicalRecords');
+      const medicalRecordsQuery = query(medicalRecordsRef, where('studentId', '==', studentId));
+      const medicalRecordsSnapshot = await getDocs(medicalRecordsQuery);
+      
+      medicalRecordsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete campus access records
+      const campusAccessRef = collection(db, 'campusAccess');
+      const campusAccessQuery = query(campusAccessRef, where('studentId', '==', studentId));
+      const campusAccessSnapshot = await getDocs(campusAccessQuery);
+      
+      campusAccessSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete the student record
+      batch.delete(doc(db, 'students', studentId));
+      
+      // Commit all the deletions as a batch
+      await batch.commit();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting student with related data:', error);
       throw error;
     }
   }

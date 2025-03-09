@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, List, Typography, Spin, Empty, Select, Progress, Tag } from 'antd';
-import { HomeOutlined, TeamOutlined, UserOutlined, LoginOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, List, Typography, Spin, Empty, Select, Progress, Tag, Space, Button, Popconfirm, message } from 'antd';
+import { HomeOutlined, TeamOutlined, UserOutlined, LoginOutlined, LogoutOutlined, DeleteOutlined } from '@ant-design/icons';
 import { hostelService } from '../../utils/firebase/hostelService';
 
 const { Text, Title } = Typography;
@@ -99,6 +99,25 @@ function HostelDashboard() {
   
   const selectedStats = getSelectedHostelStats();
   
+  const handleDeleteHostel = async () => {
+    if (!selectedHostel) {
+      message.warning('Please select a hostel to delete');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await hostelService.deleteHostelWithRelatedData(selectedHostel);
+      message.success('Hostel and all related data deleted successfully');
+      setSelectedHostel(null);
+    } catch (error) {
+      console.error('Error deleting hostel:', error);
+      message.error('Failed to delete hostel');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   return (
     <div className="hostel-dashboard-container">
       <Row gutter={[16, 16]}>
@@ -109,17 +128,38 @@ function HostelDashboard() {
                 <Title level={4}>Hostel Occupancy Dashboard</Title>
               </Col>
               <Col>
-                <Select
-                  placeholder="Select Hostel"
-                  style={{ width: 200 }}
-                  value={selectedHostel}
-                  onChange={handleHostelChange}
-                  loading={loading}
-                >
-                  {hostels.map(hostel => (
-                    <Option key={hostel.id} value={hostel.id}>{hostel.name}</Option>
-                  ))}
-                </Select>
+                <Space>
+                  <Select
+                    placeholder="Select Hostel"
+                    style={{ width: 200 }}
+                    value={selectedHostel}
+                    onChange={handleHostelChange}
+                    loading={loading}
+                  >
+                    {hostels.map(hostel => (
+                      <Option key={hostel.id} value={hostel.id}>{hostel.name}</Option>
+                    ))}
+                  </Select>
+                  
+                  {selectedHostel && (
+                    <Popconfirm
+                      title="Delete this hostel?"
+                      description="This will delete all rooms, assignments, and access records for this hostel."
+                      onConfirm={handleDeleteHostel}
+                      okText="Yes, Delete"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button 
+                        danger 
+                        icon={<DeleteOutlined />}
+                        loading={loading}
+                      >
+                        Delete Hostel
+                      </Button>
+                    </Popconfirm>
+                  )}
+                </Space>
               </Col>
             </Row>
           </Card>

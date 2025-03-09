@@ -164,7 +164,7 @@ function MedicalRecordForm() {
               <div>
                 <Alert
                   message={`Student: ${student.name}`}
-                  description={`ID: ${student.id} | Course: ${student.course || 'N/A'}`}
+                  description={`ID: ${student.schoolId} `}
                   type="success"
                   showIcon
                   icon={<UserOutlined />}

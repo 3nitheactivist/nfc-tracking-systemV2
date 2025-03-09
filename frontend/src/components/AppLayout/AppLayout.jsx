@@ -1,14 +1,113 @@
 // Header.jsx
-import React from 'react';
-import { Button } from 'antd';
-import { MenuOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Button, Avatar, Dropdown, Space, Typography, Layout } from 'antd';
+import { 
+  MenuOutlined, 
+  UserOutlined, 
+  LogoutOutlined,
+  FilterOutlined, 
+  SettingOutlined, 
+  BookOutlined,
+  MedicineBoxOutlined,
+  SafetyOutlined,
+  ApartmentOutlined,
+  ScheduleOutlined,
+  HomeOutlined
+} from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 import logo from "../../assets/images/logoWhite.png";
+import { auth } from '../../utils/firebase/firebase';
+import { signOut } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 const { Header: AntHeader } = Layout;
+const { Text } = Typography;
 
 const Header = ({ toggleSidebar }) => {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Set up auth state listener
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      if (currentUser) {
+        setUser({
+          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+          email: currentUser.email
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    // Clean up subscription
+    return () => unsubscribe();
+  }, []);
+
+  // Function to get initials from name
+  const getInitials = (name) => {
+    if (!name) return '';
+    
+    // Split the name by spaces and get the first letter of each part
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2); // Limit to 2 characters
+  };
+
+  // Function to generate a consistent color based on name
+  const getAvatarColor = (name) => {
+    if (!name) return '#1890ff'; // Default blue color
+    
+    // Generate a simple hash from the name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Convert hash to a color
+    const colors = [
+      '#1890ff', // Blue
+      '#52c41a', // Green
+      '#faad14', // Yellow
+      '#f5222d', // Red
+      '#722ed1', // Purple
+      '#eb2f96', // Pink
+      '#fa8c16', // Orange
+      '#13c2c2', // Cyan
+      '#2f54eb'  // Geekblue
+    ];
+    
+    // Use the hash to select a color from the array
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error.message);
+    }
+  };
+
+  const userMenuItems = [
+    // {
+    //   key: 'profile',
+    //   label: 'Profile',
+    //   icon: <UserOutlined />,
+    // },
+    {
+      key: 'logout',
+      label: 'Logout',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+    },
+  ];
+
   return (
     <AntHeader 
       style={{ 
@@ -37,39 +136,55 @@ const Header = ({ toggleSidebar }) => {
           style={{ marginRight: '20px', border: 'none' }}
         />
         <img
-          src={logo} // Replace with your logo path
+          src={logo}
           alt="Logo"
-          style={{ height: '60px',  }}
+          style={{ height: '60px' }}
         />
       </motion.div>
+
+      {/* User information section */}
+      {user && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{ display: 'flex', alignItems: 'center' }}
+        >
+          <Dropdown
+            menu={{ items: userMenuItems }}
+            placement="bottomRight"
+            arrow
+          >
+            <Space style={{ cursor: 'pointer', color: 'white' }}>
+              <Text style={{ color: 'white', marginRight: '10px' }}>
+                {user.displayName}
+              </Text>
+              <Avatar 
+                style={{ 
+                  backgroundColor: getAvatarColor(user.displayName),
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                {getInitials(user.displayName)}
+              </Avatar>
+            </Space>
+          </Dropdown>
+        </motion.div>
+      )}
     </AntHeader>
   );
 };
 
 // Sidebar.jsx
-// import React from 'react';
-import { Layout, Menu } from 'antd';
-import { 
-  HomeOutlined, 
-  FilterOutlined, 
-  SettingOutlined, 
-  UserOutlined, 
-  LogoutOutlined,
-  BookOutlined,
-  MedicineBoxOutlined,
-  SafetyOutlined,
-  ApartmentOutlined,
-  ScheduleOutlined
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../utils/firebase/firebase';
-import {  AnimatePresence } from 'framer-motion';
+import { Menu } from 'antd';
+import { useNavigate as useSidebarNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
 const { Sider } = Layout;
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
-  const navigate = useNavigate();
+  const navigate = useSidebarNavigate();
 
   const handleNavigation = (path) => {
     toggleSidebar();
@@ -149,7 +264,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           justifyContent: 'center',
         }}>
           <img
-            src={logo} // Replace with your logo path
+            src={logo}
             alt="Logo"
             style={{ height: '60px'}}
           />
@@ -229,6 +344,15 @@ const AppLayout = ({ children }) => {
 
 AppLayout.propTypes = {
   children: PropTypes.node.isRequired
+};
+
+Header.propTypes = {
+  toggleSidebar: PropTypes.func.isRequired
+};
+
+Sidebar.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  toggleSidebar: PropTypes.func.isRequired
 };
 
 export { Header, Sidebar, AppLayout };
