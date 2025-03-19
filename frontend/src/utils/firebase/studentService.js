@@ -15,6 +15,34 @@ import {
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../../constants/collections';
 
+// Get student by NFC Tag ID (used for both NFC tags and fingerprints)
+const getStudentByNfcId = async (nfcId) => {
+  if (!nfcId) return null;
+  
+  console.log(`Looking up student with nfcTagId: ${nfcId}`);
+  
+  try {
+    const q = query(
+      collection(db, 'students'), 
+      where('nfcTagId', '==', nfcId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      console.log(`No student found with nfcTagId: ${nfcId}`);
+      return null;
+    }
+    
+    const doc = querySnapshot.docs[0];
+    const student = { id: doc.id, ...doc.data() };
+    console.log(`Found student: ${student.name}`);
+    return student;
+  } catch (error) {
+    console.error('Error fetching student by nfcTagId:', error);
+    throw error;
+  }
+};
+
 export const studentService = {
   // Create new student
   async enrollStudent(studentData) {
@@ -81,69 +109,7 @@ export const studentService = {
   },
 
   // Get a student by their NFC ID
-  async getStudentByNfcId(nfcId) {
-    try {
-      // Try lowercase first
-      console.log(`Looking for student with NFC ID: ${nfcId}`);
-      
-      // Try both nfcId and nfcTagId fields
-      let querySnapshot = await getDocs(
-        query(collection(db, COLLECTIONS.STUDENTS), where('nfcId', '==', nfcId))
-      );
-      
-      if (querySnapshot.empty) {
-        console.log(`No student found with nfcId: ${nfcId}, trying nfcTagId`);
-        querySnapshot = await getDocs(
-          query(collection(db, COLLECTIONS.STUDENTS), where('nfcTagId', '==', nfcId))
-        );
-      }
-      
-      // If we found a match, return the student
-      if (!querySnapshot.empty) {
-        const studentDoc = querySnapshot.docs[0];
-        return {
-          id: studentDoc.id,
-          ...studentDoc.data()
-        };
-      }
-      
-      // If no direct match found, try a case-insensitive approach by getting all students
-      console.log(`No direct match found, checking all students for NFC ID match`);
-      const allStudentsSnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
-      
-      // Manually check each student for a match
-      for (const studentDoc of allStudentsSnapshot.docs) {
-        const studentData = studentDoc.data();
-        const nfcTagId = studentData.nfcTagId;
-        const studentNfcId = studentData.nfcId;
-        
-        // Create variations of the IDs for comparison
-        const variations = [
-          nfcId, 
-          nfcId.toUpperCase(), 
-          nfcId.toLowerCase(),
-          `NFC_${nfcId}`,
-          `NFC-${nfcId}`,
-          nfcId.replace(/^(nfc[_-]?)/i, '')
-        ];
-        
-        // Check for any match
-        if (variations.includes(nfcTagId) || variations.includes(studentNfcId)) {
-          console.log(`Found matching student: ${studentData.name}`);
-          return {
-            id: studentDoc.id,
-            ...studentData
-          };
-        }
-      }
-      
-      console.log(`No student found with NFC ID: ${nfcId} after trying all variations`);
-      return null;
-    } catch (error) {
-      console.error('Error getting student by NFC ID:', error);
-      throw error;
-    }
-  },
+  getStudentByNfcId,
   
   // Update a student's NFC ID
   async updateStudentNfcId(studentId, nfcId) {

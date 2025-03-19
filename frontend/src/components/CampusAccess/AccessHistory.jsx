@@ -507,7 +507,7 @@ function AccessHistory() {
         
         <Col xs={24} lg={8}>
           <Space>
-            <Input.Group compact>
+            {/* <Input.Group compact>
               <Input 
                 style={{ width: 180 }} 
                 placeholder="Enter NFC ID"
@@ -522,7 +522,7 @@ function AccessHistory() {
               >
                 Go
               </Button>
-            </Input.Group>
+            </Input.Group> */}
             
             <Button 
               icon={<ScanOutlined />}

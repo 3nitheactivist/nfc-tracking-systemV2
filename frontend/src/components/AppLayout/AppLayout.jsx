@@ -1,25 +1,26 @@
 // Header.jsx
-import React, { useEffect, useState } from 'react';
-import { Button, Avatar, Dropdown, Space, Typography, Layout } from 'antd';
-import { 
-  MenuOutlined, 
-  UserOutlined, 
+import React, { useEffect, useState } from "react";
+import { Button, Avatar, Dropdown, Space, Typography, Layout } from "antd";
+import {
+  MenuOutlined,
+  UserOutlined,
   LogoutOutlined,
-  FilterOutlined, 
-  SettingOutlined, 
+  FilterOutlined,
+  SettingOutlined,
   BookOutlined,
   MedicineBoxOutlined,
   SafetyOutlined,
   ApartmentOutlined,
   ScheduleOutlined,
-  HomeOutlined
-} from '@ant-design/icons';
-import { motion } from 'framer-motion';
-import PropTypes from 'prop-types';
+  HomeOutlined,
+} from "@ant-design/icons";
+import { motion } from "framer-motion";
+import PropTypes from "prop-types";
 import logo from "../../assets/images/logoWhite.png";
-import { auth } from '../../utils/firebase/firebase';
-import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { auth } from "../../utils/firebase/firebase";
+import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import BluetoothButton from "../BluetoothButton/BluetoothButton";
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -33,8 +34,11 @@ const Header = ({ toggleSidebar }) => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       if (currentUser) {
         setUser({
-          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
-          email: currentUser.email
+          displayName:
+            currentUser.displayName ||
+            currentUser.email?.split("@")[0] ||
+            "User",
+          email: currentUser.email,
         });
       } else {
         setUser(null);
@@ -47,40 +51,40 @@ const Header = ({ toggleSidebar }) => {
 
   // Function to get initials from name
   const getInitials = (name) => {
-    if (!name) return '';
-    
+    if (!name) return "";
+
     // Split the name by spaces and get the first letter of each part
     return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
       .toUpperCase()
       .substring(0, 2); // Limit to 2 characters
   };
 
   // Function to generate a consistent color based on name
   const getAvatarColor = (name) => {
-    if (!name) return '#1890ff'; // Default blue color
-    
+    if (!name) return "#1890ff"; // Default blue color
+
     // Generate a simple hash from the name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
+
     // Convert hash to a color
     const colors = [
-      '#1890ff', // Blue
-      '#52c41a', // Green
-      '#faad14', // Yellow
-      '#f5222d', // Red
-      '#722ed1', // Purple
-      '#eb2f96', // Pink
-      '#fa8c16', // Orange
-      '#13c2c2', // Cyan
-      '#2f54eb'  // Geekblue
+      "#1890ff", // Blue
+      "#52c41a", // Green
+      "#faad14", // Yellow
+      "#f5222d", // Red
+      "#722ed1", // Purple
+      "#eb2f96", // Pink
+      "#fa8c16", // Orange
+      "#13c2c2", // Cyan
+      "#2f54eb", // Geekblue
     ];
-    
+
     // Use the hash to select a color from the array
     return colors[Math.abs(hash) % colors.length];
   };
@@ -88,9 +92,9 @@ const Header = ({ toggleSidebar }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Error logging out:', error.message);
+      console.error("Error logging out:", error.message);
     }
   };
 
@@ -101,45 +105,41 @@ const Header = ({ toggleSidebar }) => {
     //   icon: <UserOutlined />,
     // },
     {
-      key: 'logout',
-      label: 'Logout',
+      key: "logout",
+      label: "Logout",
       icon: <LogoutOutlined />,
       onClick: handleLogout,
     },
   ];
 
   return (
-    <AntHeader 
-      style={{ 
-        background: '#00923f',
-        padding: '0 20px',
-        height: '70px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'fixed',
-        width: '100%',
+    <AntHeader
+      style={{
+        background: "#00923f",
+        padding: "0 20px",
+        height: "70px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        position: "fixed",
+        width: "100%",
         zIndex: 1000,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       }}
     >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        style={{ display: 'flex', alignItems: 'center' }}
+        style={{ display: "flex", alignItems: "center" }}
       >
         <Button
           type="text"
-          icon={<MenuOutlined style={{ fontSize: '20px', color: 'white' }} />}
+          icon={<MenuOutlined style={{ fontSize: "20px", color: "white" }} />}
           onClick={toggleSidebar}
-          style={{ marginRight: '20px', border: 'none' }}
+          style={{ marginRight: "20px", border: "none" }}
         />
-        <img
-          src={logo}
-          alt="Logo"
-          style={{ height: '60px' }}
-        />
+        <img src={logo} alt="Logo" style={{ height: "60px" }} />
       </motion.div>
 
       {/* User information section */}
@@ -148,22 +148,22 @@ const Header = ({ toggleSidebar }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
-          style={{ display: 'flex', alignItems: 'center' }}
+          style={{ display: "flex", alignItems: "center" }}
         >
           <Dropdown
             menu={{ items: userMenuItems }}
             placement="bottomRight"
             arrow
           >
-            <Space style={{ cursor: 'pointer', color: 'white' }}>
-              <Text style={{ color: 'white', marginRight: '10px' }}>
+            <Space style={{ cursor: "pointer", color: "white" }}>
+              <Text style={{ color: "white", marginRight: "10px" }}>
                 {user.displayName}
               </Text>
-              <Avatar 
-                style={{ 
+              <Avatar
+                style={{
                   backgroundColor: getAvatarColor(user.displayName),
-                  color: 'white',
-                  cursor: 'pointer'
+                  color: "white",
+                  cursor: "pointer",
                 }}
               >
                 {getInitials(user.displayName)}
@@ -177,9 +177,9 @@ const Header = ({ toggleSidebar }) => {
 };
 
 // Sidebar.jsx
-import { Menu } from 'antd';
-import { useNavigate as useSidebarNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { Menu } from "antd";
+import { useNavigate as useSidebarNavigate } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 
 const { Sider } = Layout;
 
@@ -194,9 +194,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Error logging out:', error.message);
+      console.error("Error logging out:", error.message);
     }
   };
 
@@ -204,19 +204,19 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     open: {
       x: 0,
       transition: {
-        type: 'spring',
+        type: "spring",
         stiffness: 300,
-        damping: 30
-      }
+        damping: 30,
+      },
     },
     closed: {
-      x: '-100%',
+      x: "-100%",
       transition: {
-        type: 'spring',
+        type: "spring",
         stiffness: 300,
-        damping: 30
-      }
-    }
+        damping: 30,
+      },
+    },
   };
 
   return (
@@ -229,13 +229,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             exit={{ opacity: 0 }}
             onClick={toggleSidebar}
             style={{
-              position: 'fixed',
+              position: "fixed",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 1000
+              background: "rgba(0, 0, 0, 0.5)",
+              zIndex: 1000,
             }}
           />
         )}
@@ -243,31 +243,29 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
       <motion.div
         initial="closed"
-        animate={isOpen ? 'open' : 'closed'}
+        animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
         style={{
-          position: 'fixed',
+          position: "fixed",
           top: 0,
           left: 0,
           bottom: 0,
-          width: '250px',
-          background: 'white',
+          width: "250px",
+          background: "white",
           zIndex: 1001,
-          boxShadow: '2px 0 8px rgba(0,0,0,0.15)'
+          boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
         }}
       >
-        <div style={{ 
-          height: '70px', 
-          background: '#00923f',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <img
-            src={logo}
-            alt="Logo"
-            style={{ height: '60px'}}
-          />
+        <div
+          style={{
+            height: "70px",
+            background: "#00923f",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img src={logo} alt="Logo" style={{ height: "60px" }} />
         </div>
 
         <Menu
@@ -275,49 +273,52 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           style={{ borderRight: 0 }}
           items={[
             {
-              key: 'students management',
+              key: "students management",
               icon: <HomeOutlined />,
-              label: 'Students Management',
-              onClick: () => handleNavigation('/students')
+              label: "Students Management",
+              onClick: () => handleNavigation("/students"),
             },
             {
-              key: 'library',
+              key: "library",
               icon: <BookOutlined />,
-              label: 'Library Access',
-              onClick: () => handleNavigation('/library')
+              label: "Library Access",
+              onClick: () => handleNavigation("/library"),
             },
             {
-              key: 'medical',
+              key: "medical",
               icon: <MedicineBoxOutlined />,
-              label: 'Medical Records',
-              onClick: () => handleNavigation('/medical')
+              label: "Medical Records",
+              onClick: () => handleNavigation("/medical"),
             },
             {
-              key: 'campus',
+              key: "campus",
               icon: <SafetyOutlined />,
-              label: 'Campus Access',
-              onClick: () => handleNavigation('/campus')
+              label: "Campus Access",
+              onClick: () => handleNavigation("/campus"),
             },
             {
-              key: 'hostel',
+              key: "hostel",
               icon: <ApartmentOutlined />,
-              label: 'Hostel Management',
-              onClick: () => handleNavigation('/hostel')
+              label: "Hostel Management",
+              onClick: () => handleNavigation("/hostel"),
             },
             {
-              key: 'attendance',
+              key: "attendance",
               icon: <ScheduleOutlined />,
-              label: 'Class Attendance',
-              onClick: () => handleNavigation('/attendance')
+              label: "Class Attendance",
+              onClick: () => handleNavigation("/attendance"),
             },
             {
-              key: 'logout',
+              key: "logout",
               icon: <LogoutOutlined />,
-              label: 'Log Out',
-              onClick: handleLogout
+              label: "Log Out",
+              onClick: handleLogout,
             },
           ]}
         />
+        <div style={{ position: "absolute", bottom: "20px", justifyContent: "center", alignItems: "center", width: "100%" }}>
+          <BluetoothButton />
+        </div>
       </motion.div>
     </>
   );
@@ -332,10 +333,10 @@ const AppLayout = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: "100vh" }}>
       <Header toggleSidebar={toggleSidebar} />
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      <Layout.Content style={{ marginTop: '70px', padding: '24px' }}>
+      <Layout.Content style={{ marginTop: "70px", padding: "24px" }}>
         {children}
       </Layout.Content>
     </Layout>
@@ -343,16 +344,16 @@ const AppLayout = ({ children }) => {
 };
 
 AppLayout.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 Header.propTypes = {
-  toggleSidebar: PropTypes.func.isRequired
+  toggleSidebar: PropTypes.func.isRequired,
 };
 
 Sidebar.propTypes = {
   isOpen: PropTypes.bool.isRequired,
-  toggleSidebar: PropTypes.func.isRequired
+  toggleSidebar: PropTypes.func.isRequired,
 };
 
 export { Header, Sidebar, AppLayout };

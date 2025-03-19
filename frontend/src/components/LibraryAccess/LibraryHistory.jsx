@@ -26,6 +26,9 @@ import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { libraryService } from '../../utils/firebase/libraryService';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../../utils/firebase/firebase';
+import { message } from 'antd';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -51,40 +54,49 @@ function LibraryHistory() {
   });
 
   useEffect(() => {
-    fetchAccessHistory();
-  }, []);
-
-  const fetchAccessHistory = async () => {
+    const fetchLibraryAccessRecords = async () => {
     setLoading(true);
     try {
-      const history = await libraryService.getAccessHistory();
-      
-      // Process the data to match our component's expected format
-      const processedData = history.map(record => ({
-        id: record.id,
-        studentId: record.studentId || 'Unknown',
-        studentName: record.studentName || 'Unknown Student',
-        accessType: record.accessType || 'check-in',
-        timestamp: record.timestamp ? new Date(record.timestamp.seconds * 1000) : new Date(),
-        location: record.location || 'Main Library',
-        duration: record.duration || null,
-        studyPurpose: record.studyPurpose || null
-      }));
-      
-      setData(processedData);
+        console.log("Fetching library access records");
+        
+        // Create the query - use the correct collection name
+        const accessQuery = query(
+          collection(db, 'LibraryAccessRecords'), // FIXED COLLECTION NAME
+          orderBy('timestamp', 'desc')
+        );
+        
+        const querySnapshot = await getDocs(accessQuery);
+        console.log(`Found ${querySnapshot.size} library access records`);
+        
+        const records = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const record = {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
+          };
+          records.push(record);
+        });
+        
+        setData(records);
       setTableParams({
         ...tableParams,
         pagination: {
           ...tableParams.pagination,
-          total: processedData.length
+            total: records.length
         }
       });
     } catch (error) {
-      console.error('Error fetching access history:', error);
+        console.error('Error fetching library access records:', error);
+        message.error('Failed to fetch library access records');
     } finally {
       setLoading(false);
     }
   };
+    
+    fetchLibraryAccessRecords();
+  }, []);
 
   const handleSearch = (value) => {
     setSearchText(value);
@@ -262,7 +274,9 @@ function LibraryHistory() {
             </Button>
             <Button 
               icon={<ReloadOutlined />}
-              onClick={fetchAccessHistory}
+              onClick={() => {
+                // Implement refresh functionality
+              }}
             >
               Refresh
             </Button>

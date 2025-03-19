@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Form, 
   Input, 
@@ -9,17 +9,20 @@ import {
   Space,
   Typography,
   Divider,
-  Result 
+  Result,
+  Badge,
+  Spin
 } from 'antd';
 import { motion } from 'framer-motion';
 import { 
   UserOutlined, 
   IdcardOutlined, 
   ScanOutlined,
-  CheckCircleOutlined 
+  CheckCircleOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
-import { useNFCScanner } from '../hooks/useNFCScanner';
 import { studentService } from '../utils/firebase/studentService';
+import { useBluetooth } from '../components/BluetoothButton/BluetoothContext';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +32,8 @@ const StudentEnrollmentPage = () => {
   const [scanning, setScanning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const scanTimeoutRef = useRef(null);
+  const wsRef = useRef(null);
   
   // Use state to directly track form values
   const [studentData, setStudentData] = useState({
@@ -39,28 +44,91 @@ const StudentEnrollmentPage = () => {
     nfcTagId: ''
   });
   
-  const { nfcData, isConnected } = useNFCScanner();
+  // Get Bluetooth connection state from context
+  const { isBluetoothConnected } = useBluetooth();
 
+  // WebSocket connection for fingerprint scanning
   useEffect(() => {
-    if (nfcData) {
-      setStudentData(prev => ({ ...prev, nfcTagId: nfcData }));
-      form.setFieldValue('nfcTagId', nfcData);
-      setScanning(false);
-      message.success('NFC tag scanned successfully!');
-      setCurrentStep(2);
-    }
-  }, [nfcData, form]);
+    // Only create WebSocket connection when scanning is active
+    if (!scanning) return;
 
-  const startNFCScan = async () => {
-    if (!isConnected) {
-      message.error('Scanner not connected');
+    // Create WebSocket connection
+    wsRef.current = new WebSocket("ws://localhost:8080");
+
+    wsRef.current.onopen = () => {
+      console.log("WebSocket connection established.");
+      message.info("Waiting for fingerprint scan...");
+    };
+
+    wsRef.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("Received WebSocket data:", data);
+        
+        if (data.fingerprintID && scanning) {
+          const tagId = data.fingerprintID;
+          
+          // Update form with received data
+          setStudentData(prev => ({ ...prev, nfcTagId: tagId }));
+          form.setFieldValue('nfcTagId', tagId);
+          setScanning(false);
+          
+          // Clear scan timeout if it exists
+          if (scanTimeoutRef.current) {
+            clearTimeout(scanTimeoutRef.current);
+            scanTimeoutRef.current = null;
+          }
+          
+          message.success('ID scanned successfully!');
+          setCurrentStep(2); // Move to confirmation step
+        }
+      } catch (err) {
+        console.error("Error parsing WebSocket message:", err);
+      }
+    };
+
+    wsRef.current.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      message.error("Connection error. Please try again.");
+      setScanning(false);
+    };
+
+    wsRef.current.onclose = () => {
+      console.log("WebSocket connection closed.");
+    };
+
+    // Cleanup when scanning stops or component unmounts
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [scanning, form]);
+
+  const startScan = () => {
+    if (!isBluetoothConnected) {
+      message.error("Bluetooth is not connected. Please connect using the Bluetooth button in the sidebar.");
       return;
     }
+    
     setScanning(true);
-    // The actual scan will be handled by the WebSocket connection
+    
+    // Set a timeout: if no data is received within 20 seconds, stop scanning
+    scanTimeoutRef.current = setTimeout(() => {
+      setScanning(false);
+      message.error("Scanning timed out. Please try again.");
+      scanTimeoutRef.current = null;
+      
+      // Close WebSocket if it's still open
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    }, 20000); // 20 seconds
   };
 
-  // Mock NFC scanning process for testing
+  // Mock scan function for testing (when Bluetooth isn't available)
   const simulateNFCScan = () => {
     setScanning(true);
     setTimeout(() => {
@@ -68,7 +136,7 @@ const StudentEnrollmentPage = () => {
       setStudentData(prev => ({ ...prev, nfcTagId: mockNfcId }));
       form.setFieldValue('nfcTagId', mockNfcId);
       setScanning(false);
-      message.success('NFC tag scanned successfully!');
+      message.success('ID scanned successfully!');
       setCurrentStep(2);
     }, 2000);
   };
@@ -94,7 +162,7 @@ const StudentEnrollmentPage = () => {
         createdAt: new Date()
       };
 
-      console.log('Submitting student data:', studentData);
+      console.log('Submitting student data:', dataToSubmit);
       
       const result = await studentService.enrollStudent(dataToSubmit);
       
@@ -184,27 +252,69 @@ const StudentEnrollmentPage = () => {
           transition={{ duration: 0.5 }}
         >
           <Space direction="vertical" align="center" style={{ width: '100%' }}>
-            <Text>Please scan the student's NFC tag</Text>
+            {/* Bluetooth Connection Status */}
+            <Badge 
+              status={isBluetoothConnected ? "success" : "error"} 
+              text={isBluetoothConnected ? "Bluetooth connected" : "Bluetooth not connected"} 
+              style={{ marginBottom: 16 }}
+            />
+            
+            <Text>Please scan the student's ID</Text>
             <Form.Item 
               name="nfcTagId"
-              rules={[{ required: true, message: 'Please scan NFC tag' }]}
+              rules={[{ required: true, message: 'Please scan ID' }]}
             >
               <Input 
                 disabled 
-                placeholder="NFC Tag ID" 
+                placeholder="ID" 
                 size="large"
                 value={studentData.nfcTagId} 
               />
             </Form.Item>
+            
+            {/* Scan button */}
             <Button 
               type="primary" 
               icon={<ScanOutlined />} 
               loading={scanning}
-              onClick={simulateNFCScan}
+              onClick={startScan}
               size="large"
+              disabled={scanning || !isBluetoothConnected}
+              style={{ marginBottom: 8 }}
             >
-              {scanning ? 'Scanning...' : 'Start Scan'}
+              {scanning ? 'Scanning...' : 'Scan ID'}
             </Button>
+            
+            {/* Show simulation button in dev environment */}
+            {process.env.NODE_ENV === 'development' && (
+              <Button 
+                type="default" 
+                onClick={simulateNFCScan}
+                disabled={scanning}
+              >
+                Simulate Scan (Dev only)
+              </Button>
+            )}
+            
+            {/* Show scanning animation */}
+            {scanning && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                style={{ marginTop: 20, textAlign: "center" }}
+              >
+                <Spin 
+                  indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} 
+                  tip="Waiting for scanner..." 
+                />
+              </motion.div>
+            )}
+            
+            {!isBluetoothConnected && (
+              <Text type="danger" style={{ marginTop: 16 }}>
+                Please connect Bluetooth using the button in the sidebar
+              </Text>
+            )}
           </Space>
         </motion.div>
       ),

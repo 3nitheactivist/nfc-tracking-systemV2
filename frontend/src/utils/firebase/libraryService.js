@@ -38,83 +38,34 @@ const getEndOfDay = (date) => {
  * @param {number} limit - Maximum number of records to return
  * @returns {Promise<Array>} - Array of recent activity records
  */
-export const getRecentActivity = async (limit = 5) => {
+export const getRecentActivity = async (limit = 10) => {
   try {
-    console.log('Fetching recent activity...');
+    console.log("Getting recent library activity, limit:", limit);
     
-    // Get recent library access records - UPDATED to use LibraryAccessRecords
-    const accessRef = collection(db, LIBRARY_ACCESS_COLLECTION);
+    // Query for recent library access records
     const q = query(
-      accessRef,
+      collection(db, LIBRARY_ACCESS_COLLECTION),
       orderBy('timestamp', 'desc'),
-      firestoreLimit(20) // Fetch more than needed in case some have invalid students
+      firestoreLimit(limit)
     );
     
-    const snapshot = await getDocs(q);
-    console.log(`Found ${snapshot.size} total records`);
+    const querySnapshot = await getDocs(q);
+    console.log(`Found ${querySnapshot.size} recent activity records`);
     
-    if (snapshot.empty) {
-      console.log('No library access records found');
+    const activities = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      // Convert timestamp to JS Date if it exists
+      const timestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
       
-      // If no records exist, let's create a test record for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Creating a test record for debugging...');
-        try {
-          // Get a random student
-          const studentsRef = collection(db, 'students');
-          const studentsSnapshot = await getDocs(query(studentsRef, firestoreLimit(1)));
-          
-          if (!studentsSnapshot.empty) {
-            const studentDoc = studentsSnapshot.docs[0];
-            const studentData = studentDoc.data();
-            
-            // Create a test record - UPDATED to use LibraryAccessRecords
-            await addDoc(collection(db, LIBRARY_ACCESS_COLLECTION), {
-              studentId: studentDoc.id,
-              studentName: studentData.name,
-              accessType: 'check-in',
-              timestamp: serverTimestamp(),
-              status: 'active',
-              reason: 'Study session'
-            });
-            
-            console.log('Test record created successfully');
-          }
-        } catch (error) {
-          console.error('Error creating test record:', error);
-        }
-      }
-      
-      return [];
-    }
+      activities.push({
+        id: doc.id,
+        ...data,
+        timestamp
+      });
+    });
     
-    const accessRecords = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    console.log('Raw access records:', accessRecords);
-    
-    // For each record, verify the student exists
-    const validRecords = [];
-    
-    for (const record of accessRecords) {
-      // Skip records without studentId or studentName
-      if (!record.studentId || !record.studentName) {
-        console.log(`Skipping record ${record.id} - missing student info`);
-        continue;
-      }
-      
-      // Add to valid records without checking student existence
-      // This is a temporary fix to ensure records are displayed
-      validRecords.push(record);
-      
-      // If we have enough valid records, stop checking
-      if (validRecords.length >= limit) break;
-    }
-    
-    console.log('Valid records to return:', validRecords);
-    return validRecords.slice(0, limit);
+    return activities;
   } catch (error) {
     console.error('Error getting recent activity:', error);
     return [];
@@ -125,17 +76,27 @@ export const libraryService = {
   // Record library access (check-in or check-out)
   async recordAccess(accessData) {
     try {
-      const accessRecord = {
+      console.log("Recording library access:", accessData);
+      
+      // Make sure we have the correct fields
+      const dataToSave = {
         ...accessData,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        // Ensure these fields are present
+        status: accessData.status || 'active',
+        studentId: accessData.studentId,
+        studentName: accessData.studentName,
+        accessType: accessData.accessType // 'check-in' or 'check-out'
       };
       
-      // UPDATED to use LibraryAccessRecords
-      await addDoc(collection(db, LIBRARY_ACCESS_COLLECTION), accessRecord);
-      return { success: true };
+      // Add the document to Firestore - FIXED COLLECTION NAME
+      const docRef = await addDoc(collection(db, LIBRARY_ACCESS_COLLECTION), dataToSave);
+      console.log("Library access recorded with ID:", docRef.id);
+        
+        return { success: true, id: docRef.id };
     } catch (error) {
       console.error('Error recording library access:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
   
@@ -187,101 +148,132 @@ export const libraryService = {
   // Get library statistics
   async getStatistics() {
     try {
-      // Get current date at midnight
+      console.log("Fetching library statistics");
+      
+      // Get today's date (start of day)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      // Query for check-ins today
-      const accessRef = collection(db, LIBRARY_ACCESS_COLLECTION);
-      const todayQuery = query(
-        accessRef,
-        where('timestamp', '>=', Timestamp.fromDate(today)),
-        where('accessType', '==', 'check-in')
+      // STEP 1: Calculate current visitors properly
+      // We need to find all students whose most recent record is a check-in
+      const allStudentsQuery = query(
+        collection(db, LIBRARY_ACCESS_COLLECTION),
+        orderBy('timestamp', 'desc')
       );
-      const todaySnapshot = await getDocs(todayQuery);
       
-      // Query for all check-ins
-      const checkInsQuery = query(
-        accessRef,
-        where('accessType', '==', 'check-in')
-      );
-      const checkInsSnapshot = await getDocs(checkInsQuery);
+      const allRecordsSnapshot = await getDocs(allStudentsQuery);
+      console.log(`Found ${allRecordsSnapshot.size} total records for processing`);
       
-      // Query for all check-outs
-      const checkOutsQuery = query(
-        accessRef,
-        where('accessType', '==', 'check-out')
-      );
-      const checkOutsSnapshot = await getDocs(checkOutsQuery);
+      // Track which students we've already processed and who's currently in the library
+      const processedStudents = new Set();
+      const studentsInLibrary = new Set();
+      let todayCheckIns = 0;
       
-      // Determine current visitors by matching check-ins without check-outs
-      const checkIns = checkInsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        studentId: doc.data().studentId
-      }));
-      
-      const checkOuts = checkOutsSnapshot.docs.map(doc => ({
-        ...doc.data(),
-        studentId: doc.data().studentId
-      }));
-      
-      // Build sets of student IDs
-      const checkedInStudents = new Set();
-      const checkedOutStudents = new Set();
-      
-      checkIns.forEach(record => {
-        checkedInStudents.add(record.studentId);
-      });
-      
-      checkOuts.forEach(record => {
-        const timestamp = record.timestamp?.toDate?.() || new Date(record.timestamp);
-        if (timestamp >= today) {
-          checkedOutStudents.add(record.studentId);
-        }
-      });
-      
-      // Calculate current visitors (checked in but not checked out today)
-      const currentVisitors = [...checkedInStudents].filter(id => !checkedOutStudents.has(id)).length;
-      
-      // Calculate average stay time from check-out records with duration
-      const durationQuery = query(
-        accessRef,
-        where('accessType', '==', 'check-out'),
-        where('duration', '>', 0)
-      );
-      const durationSnapshot = await getDocs(durationQuery);
-      
-      let totalDuration = 0;
-      let count = 0;
-      
-      durationSnapshot.forEach(doc => {
+      // Process each record to identify current visitors
+      allRecordsSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.duration && typeof data.duration === 'number') {
-          totalDuration += data.duration;
-          count++;
+        const studentId = data.studentId;
+        const recordTimestamp = data.timestamp?.toDate?.() || new Date();
+        
+        // Only count today's check-ins for the daily count
+        if (data.accessType === 'check-in' && recordTimestamp >= today) {
+          todayCheckIns++;
+        }
+        
+        // For current visitors, we only care about the latest record for each student
+        if (!processedStudents.has(studentId)) {
+          processedStudents.add(studentId);
+          
+          if (data.accessType === 'check-in') {
+            // Latest record is check-in, so student is in the library
+            studentsInLibrary.add(studentId);
+            console.log(`Student ${studentId} (${data.studentName}) is currently in the library`);
+          } else {
+            console.log(`Student ${studentId} (${data.studentName}) is not in the library (last action: check-out)`);
+          }
         }
       });
       
-      console.log(`Average stay calculation: ${totalDuration}/${count} = ${count > 0 ? Math.round(totalDuration / count) : 0}`);
+      const currentVisitors = studentsInLibrary.size;
+      console.log(`Current visitors count: ${currentVisitors}`);
       
-      const averageStayTime = count > 0 
-        ? Math.round(totalDuration / count) 
+      // STEP 2: Calculate average stay time using only today's completed visits
+      // A completed visit has both a check-in and check-out today
+      
+      // Get all of today's records
+      const todayRecordsQuery = query(
+        collection(db, LIBRARY_ACCESS_COLLECTION),
+        where('timestamp', '>=', today),
+        orderBy('timestamp', 'asc')
+      );
+      
+      const todayRecordsSnapshot = await getDocs(todayRecordsQuery);
+      console.log(`Found ${todayRecordsSnapshot.size} records from today`);
+      
+      // Group records by student
+      const studentRecords = {};
+      todayRecordsSnapshot.forEach(doc => {
+        const data = doc.data();
+        const studentId = data.studentId;
+        
+        if (!studentRecords[studentId]) {
+          studentRecords[studentId] = [];
+        }
+        
+        studentRecords[studentId].push({
+          type: data.accessType,
+          timestamp: data.timestamp?.toDate() || new Date()
+        });
+      });
+      
+      // Calculate stay durations from check-in/check-out pairs
+      let totalStayMinutes = 0;
+      let completedVisitsCount = 0;
+      
+      Object.values(studentRecords).forEach(records => {
+        // Sort records by timestamp (oldest first)
+        records.sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Go through records to find check-in/check-out pairs
+        let lastCheckIn = null;
+        
+        records.forEach(record => {
+          if (record.type === 'check-in') {
+            lastCheckIn = record.timestamp;
+          } else if (record.type === 'check-out' && lastCheckIn) {
+            // Calculate duration between check-in and check-out
+            const durationMs = record.timestamp - lastCheckIn;
+            const durationMinutes = Math.round(durationMs / 60000);
+            
+            if (durationMinutes > 0 && durationMinutes < 24 * 60) { // Ignore unrealistic durations
+              totalStayMinutes += durationMinutes;
+              completedVisitsCount++;
+              console.log(`Calculated stay duration: ${durationMinutes} minutes`);
+            }
+            
+            lastCheckIn = null; // Reset for next pair
+          }
+        });
+      });
+      
+      // Calculate average stay time (only from today's data)
+      const averageStayMinutes = completedVisitsCount > 0 
+        ? Math.round(totalStayMinutes / completedVisitsCount) 
         : 0;
       
+      console.log(`Average stay time: ${averageStayMinutes} minutes (from ${completedVisitsCount} completed visits today)`);
+      
       return {
-        currentVisitors: currentVisitors,
-        totalCheckInsToday: todaySnapshot.size,
-        booksIssued: 0, // Placeholder for future feature
-        averageStayTime: averageStayTime
+        currentVisitors,
+        todayCheckIns,
+        averageStayMinutes
       };
     } catch (error) {
-      console.error('Error getting library statistics:', error);
+      console.error('Error fetching statistics:', error);
       return {
         currentVisitors: 0,
-        totalCheckInsToday: 0,
-        booksIssued: 0,
-        averageStayTime: 0
+        todayCheckIns: 0,
+        averageStayMinutes: 0
       };
     }
   },
@@ -341,31 +333,59 @@ export const libraryService = {
 
   // Check if student is currently in the library
   async isStudentInLibrary(studentId) {
+    if (!studentId) {
+      return { inLibrary: false, accessRecord: null };
+    }
+    
     try {
-      // UPDATED to use LibraryAccessRecords
-      const accessRef = collection(db, LIBRARY_ACCESS_COLLECTION);
+      console.log("Checking if student is in library:", studentId);
+      
+      // Get the latest access record for this student
       const q = query(
-        accessRef,
+        collection(db, LIBRARY_ACCESS_COLLECTION),
         where('studentId', '==', studentId),
-        where('status', '==', 'active')
+        orderBy('timestamp', 'desc'),
+        firestoreLimit(1)
       );
       
-      const snapshot = await getDocs(q);
+      const querySnapshot = await getDocs(q);
+      console.log(`Found ${querySnapshot.size} access records for student`);
       
-      if (snapshot.empty) {
-        return { inLibrary: false };
+      if (querySnapshot.empty) {
+        return { inLibrary: false, accessRecord: null };
       }
       
-      const activeRecord = snapshot.docs[0];
-      return { 
-        inLibrary: true, 
-        accessRecord: {
-          id: activeRecord.id,
-          ...activeRecord.data()
-        }
-      };
+      // Check if the latest record is a check-in (student is in the library)
+      // or check-out (student is not in the library)
+      const doc = querySnapshot.docs[0];
+      const accessRecord = { id: doc.id, ...doc.data() };
+      
+      // If the latest record is check-in, the student is in the library
+      const inLibrary = accessRecord.accessType === 'check-in';
+      console.log(`Latest record type: ${accessRecord.accessType}, student in library: ${inLibrary}`);
+      
+      return { inLibrary, accessRecord };
     } catch (error) {
       console.error('Error checking if student is in library:', error);
+      return { inLibrary: false, accessRecord: null };
+    }
+  },
+
+  // Get active library record
+  async getActiveLibraryRecord(studentId) {
+    try {
+      const querySnapshot = await db.collection('libraryAccessRecords')
+        .where('studentId', '==', studentId)
+        .where('status', '==', 'active')
+        .get();
+
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      return querySnapshot.docs[0].data();
+    } catch (error) {
+      console.error('Error fetching active library record:', error);
       throw error;
     }
   }

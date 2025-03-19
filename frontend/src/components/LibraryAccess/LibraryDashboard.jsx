@@ -11,7 +11,8 @@ import {
   Spin,
   Alert,
   Space,
-  Typography
+  Typography,
+  message
 } from 'antd';
 import { 
   BookOutlined, 
@@ -51,6 +52,7 @@ function LibraryDashboard() {
   const [usageData, setUsageData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Set up real-time listeners
   useEffect(() => {
@@ -241,101 +243,66 @@ function LibraryDashboard() {
 
   // Refresh data manually
   const fetchDashboardData = async () => {
-    generateHourlyData();
+    setLoading(true);
+    try {
+      // Fetch statistics
+      const statistics = await libraryService.getStatistics();
+      setStatistics({
+        currentVisitors: statistics.currentVisitors,
+        totalCheckInsToday: statistics.todayCheckIns,
+        averageStayTime: statistics.averageStayMinutes
+      });
+      
+      // Fetch recent activity
+      const recentActivity = await libraryService.getRecentActivity(10);
+      console.log("Recent activity:", recentActivity);
+      setRecentActivity(recentActivity);
+      
+      // Generate hourly data based on access records
+      generateHourlyData();
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Generate hourly data based on access records
-  const generateHourlyData = async () => {
-    try {
-      // Get today's date at midnight
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      // Query for today's check-ins only
-      const todayCheckInsQuery = query(
-        collection(db, 'LibraryAccessRecords'),
-        where('timestamp', '>=', Timestamp.fromDate(today)),
-        where('accessType', '==', 'check-in')
-      );
-      
-      // Set up real-time listener for hourly data
-      const hourlyDataUnsubscribe = onSnapshot(
-        todayCheckInsQuery,
-        (snapshot) => {
-          console.log('Hourly data snapshot size:', snapshot.size);
-          
-          // Initialize hourly buckets (8AM to 6PM)
-          const hours = ['8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM'];
-          const hourlyData = hours.map(hour => ({ hour, visitors: 0 }));
-          
-          // Count visitors per hour
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.timestamp) {
-              let date;
-              if (typeof data.timestamp.toDate === 'function') {
-                date = data.timestamp.toDate();
-              } else if (data.timestamp.seconds) {
-                date = new Date(data.timestamp.seconds * 1000);
-              } else {
-                date = new Date(data.timestamp);
-              }
-              
-              const hour = date.getHours();
-              
-              // Map 24-hour format to our hourly buckets (8AM to 6PM)
-              if (hour >= 8 && hour <= 18) {
-                const index = hour - 8; // 8AM is index 0
-                if (hourlyData[index]) {
-                  hourlyData[index].visitors += 1;
-                }
-              }
-            }
-          });
-          
-          console.log('Hourly data for chart:', hourlyData);
-          setUsageData(hourlyData);
-        },
-        (error) => {
-          console.error('Error generating hourly data:', error);
-          // Use empty data on error
-          const emptyData = [
-            { hour: '8AM', visitors: 0 },
-            { hour: '9AM', visitors: 0 },
-            { hour: '10AM', visitors: 0 },
-            { hour: '11AM', visitors: 0 },
-            { hour: '12PM', visitors: 0 },
-            { hour: '1PM', visitors: 0 },
-            { hour: '2PM', visitors: 0 },
-            { hour: '3PM', visitors: 0 },
-            { hour: '4PM', visitors: 0 },
-            { hour: '5PM', visitors: 0 },
-            { hour: '6PM', visitors: 0 },
-          ];
-          setUsageData(emptyData);
-        }
-      );
-      
-      // Return the unsubscribe function
-      return hourlyDataUnsubscribe;
-    } catch (error) {
-      console.error('Error setting up hourly data listener:', error);
-      // Use empty data on error
-      const emptyData = [
-        { hour: '8AM', visitors: 0 },
-        { hour: '9AM', visitors: 0 },
-        { hour: '10AM', visitors: 0 },
-        { hour: '11AM', visitors: 0 },
-        { hour: '12PM', visitors: 0 },
-        { hour: '1PM', visitors: 0 },
-        { hour: '2PM', visitors: 0 },
-        { hour: '3PM', visitors: 0 },
-        { hour: '4PM', visitors: 0 },
-        { hour: '5PM', visitors: 0 },
-        { hour: '6PM', visitors: 0 },
-      ];
-      setUsageData(emptyData);
+  // Improved hourly data generation function
+  const generateHourlyData = (accessRecords) => {
+    console.log("Generating hourly data from", accessRecords?.length || 0, "records");
+    
+    if (!accessRecords || accessRecords.length === 0) {
+      // Return sample data if no records
+      return Array.from({ length: 11 }, (_, i) => ({
+        hour: `${i + 8}:00`,
+        visitors: 0
+      }));
     }
+    
+    // Initialize hours from 8 AM to 6 PM
+    const hours = {};
+    for (let i = 8; i <= 18; i++) {
+      hours[i] = 0;
+    }
+    
+    // Count check-ins per hour
+    accessRecords.forEach(record => {
+      if (record.accessType === 'check-in' && record.timestamp) {
+        const hour = record.timestamp.getHours();
+          if (hour >= 8 && hour <= 18) {
+          hours[hour] = (hours[hour] || 0) + 1;
+        }
+      }
+    });
+    
+    // Convert to array format for chart
+    const data = Object.entries(hours).map(([hour, count]) => ({
+      hour: `${hour}:00`,
+      visitors: count
+    }));
+    
+    console.log("Hourly data generated:", data);
+    return data;
   };
 
   const formatTimestamp = (timestamp) => {
@@ -343,6 +310,33 @@ function LibraryDashboard() {
   };
 
   const maxVisitors = Math.max(...usageData.map(item => item.visitors), 1);
+
+  // Improve the reset functionality to properly refresh data
+  const handleReset = async () => {
+    try {
+      setResetLoading(true);
+      setStatistics({
+        currentVisitors: 0,
+        totalCheckInsToday: 0,
+        averageStayTime: 0
+      });
+      setRecentActivity([]);
+      setUsageData([]);
+      
+      // Add a small delay to show reset in progress
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch fresh data
+      fetchDashboardData();
+      
+      message.success('Dashboard data has been reset and refreshed');
+    } catch (error) {
+      console.error('Error resetting dashboard:', error);
+      message.error('Failed to reset dashboard');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   if (loading && !statistics.currentVisitors) {
     return (

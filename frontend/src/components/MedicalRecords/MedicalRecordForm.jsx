@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Form, Input, DatePicker, Button, Select, message, Row, Col, Card, Alert, Spin } from 'antd';
 import { ScanOutlined, UserOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -6,6 +6,7 @@ import { db } from '../../utils/firebase/firebase';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { useMedicalRecords } from '../../hooks/useMedicalRecords';
 import { medicalService } from '../../utils/firebase/medicalService';
+import { studentService } from '../../utils/firebase/studentService';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -14,19 +15,30 @@ function MedicalRecordForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [manualNfcId, setManualNfcId] = useState('');
+  const [processing, setProcessing] = useState(false);
   
-  // NFC scanner integration
-  const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
-  const { handleNFCScan, student, scanStatus: studentScanStatus, resetStudent } = useMedicalRecords();
+  const {
+    scanning,
+    startScan,
+    stopScan,
+    lastScannedId,
+    scanStatus
+  } = useNFCScanner();
   
-  // When a new NFC ID is scanned, process it
+  const [student, setStudent] = useState(null);
+  const [scanError, setScanError] = useState(null);
+  
+  const [inputMethod, setInputMethod] = useState('manual'); // 'manual' or 'scan'
+  
   useEffect(() => {
-    if (lastScannedId && nfcScanStatus === 'success') {
+    console.log('Scan status changed:', { scanStatus, lastScannedId, scanning });
+    
+    if (lastScannedId) {
+      console.log('Processing scanned ID:', lastScannedId);
       handleNFCScan(lastScannedId);
     }
-  }, [lastScannedId, nfcScanStatus, handleNFCScan]);
+  }, [lastScannedId]);
   
-  // When a student is loaded, pre-fill the form
   useEffect(() => {
     if (student) {
       form.setFieldsValue({
@@ -37,9 +49,48 @@ function MedicalRecordForm() {
     }
   }, [student, form]);
 
+  useEffect(() => {
+    console.log('Medical form - NFC scan status:', scanStatus);
+    console.log('Medical form - Last scanned ID:', lastScannedId);
+  }, [scanStatus, lastScannedId]);
+
+  const handleNFCScan = async (nfcId) => {
+    console.log('Starting handleNFCScan with ID:', nfcId);
+    setProcessing(true);
+    setScanError(null);
+
+    try {
+      const foundStudent = await studentService.getStudentByNfcId(nfcId);
+      console.log('Database lookup result:', foundStudent);
+
+      if (!foundStudent) {
+        console.log('No student found');
+        setScanError(`No student found with ID: ${nfcId}`);
+        return;
+      }
+
+      if (!foundStudent.permissions?.medical) {
+        console.log('No medical permissions');
+        setScanError(`${foundStudent.name} does not have medical access permissions`);
+        return;
+      }
+
+      console.log('Setting student:', foundStudent);
+      setStudent(foundStudent);
+      message.success(`Student ${foundStudent.name} found successfully!`);
+      
+    } catch (error) {
+      console.error('Error in handleNFCScan:', error);
+      setScanError('Failed to process student ID. Please try again.');
+    } finally {
+      setProcessing(false);
+      stopScan(); // Ensure scanning is stopped
+    }
+  };
+
   const handleSubmit = async (values) => {
     if (!student) {
-      message.error('Please scan student NFC card first');
+      message.error('Please scan student ID card first');
       return;
     }
     
@@ -70,39 +121,25 @@ function MedicalRecordForm() {
     }
   };
 
-  // Start a new scan process
   const handleStartScan = () => {
-    resetStudent();
-    form.resetFields();
+    console.log('Starting scan process');
+    setStudent(null);
+    setScanError(null);
     startScan();
   };
 
-  // Cancel the current student session
-  const handleCancelStudent = () => {
-    resetStudent();
+  const resetStudent = () => {
+    console.log("Resetting student state");
+    setStudent(null);
+    setScanError(null);
     form.resetFields();
     stopScan();
   };
 
-  // Handle manual NFC ID input
-  const handleManualNfcSubmit = async () => {
-    if (!manualNfcId.trim()) {
-      message.error('Please enter a valid NFC ID');
-      return;
+  const handleManualInput = (value) => {
+    if (value) {
+      handleNFCScan(value);
     }
-
-    // Try different formats of the NFC ID
-    const formattedId = formatNfcId(manualNfcId.trim());
-    await handleNFCScan(formattedId);
-  };
-
-  // Format NFC ID to try different variations
-  const formatNfcId = (id) => {
-    // Remove any prefixes and underscores to get the base ID
-    const baseId = id.replace(/^(nfc[_-]?)/i, '').toUpperCase();
-    
-    // Return the original input - the hook will try different formats
-    return baseId;
   };
 
   return (
@@ -118,7 +155,8 @@ function MedicalRecordForm() {
                       type="primary" 
                       icon={<ScanOutlined />} 
                       onClick={handleStartScan}
-                      loading={scanning || studentScanStatus === 'scanning'}
+                      loading={scanning}
+                      disabled={processing}
                       size="large"
                     >
                       {scanning ? 'Scanning...' : 'Scan Student Card'}
@@ -132,12 +170,13 @@ function MedicalRecordForm() {
                         placeholder="Or enter NFC ID manually"
                         value={manualNfcId}
                         onChange={(e) => setManualNfcId(e.target.value)}
-                        onPressEnter={handleManualNfcSubmit}
+                        onPressEnter={() => handleManualInput(manualNfcId)}
+                        disabled={processing}
                       />
                       <Button 
                         type="primary" 
-                        onClick={handleManualNfcSubmit}
-                        loading={studentScanStatus === 'scanning'}
+                        onClick={() => handleManualInput(manualNfcId)}
+                        loading={processing}
                       >
                         Submit
                       </Button>
@@ -145,15 +184,9 @@ function MedicalRecordForm() {
                   </Col>
                 </Row>
                 
-                {nfcScanStatus === 'scanning' && (
-                  <div style={{ marginTop: 16 }}>
-                    <Spin /> <span style={{ marginLeft: 8 }}>Scanning NFC card...</span>
-                  </div>
-                )}
-                
-                {studentScanStatus === 'error' && (
+                {scanError && (
                   <Alert 
-                    message="Student not found or doesn't have medical access" 
+                    message={scanError} 
                     type="error" 
                     showIcon 
                     style={{ marginTop: 16 }} 
@@ -164,7 +197,7 @@ function MedicalRecordForm() {
               <div>
                 <Alert
                   message={`Student: ${student.name}`}
-                  description={`ID: ${student.schoolId} `}
+                  description={`ID: ${student.schoolId || student.id}`}
                   type="success"
                   showIcon
                   icon={<UserOutlined />}
@@ -172,7 +205,7 @@ function MedicalRecordForm() {
                     <Button 
                       danger 
                       icon={<CloseCircleOutlined />} 
-                      onClick={handleCancelStudent}
+                      onClick={resetStudent}
                     >
                       Cancel
                     </Button>
@@ -191,6 +224,7 @@ function MedicalRecordForm() {
           onFinish={handleSubmit}
           initialValues={{ 
             patientGender: 'male',
+            visitDate: null
           }}
         >
           <Row gutter={16}>
@@ -219,9 +253,9 @@ function MedicalRecordForm() {
                 rules={[{ required: true }]}
               >
                 <Select disabled>
-                  <Option value="male">Male</Option>
-                  <Option value="female">Female</Option>
-                  <Option value="other">Other</Option>
+                  <Select.Option value="male">Male</Select.Option>
+                  <Select.Option value="female">Female</Select.Option>
+                  <Select.Option value="other">Other</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -268,14 +302,14 @@ function MedicalRecordForm() {
             name="treatment"
             label="Treatment/Prescription"
           >
-            <TextArea rows={4} placeholder="Enter treatment details or prescription" />
+            <Input.TextArea rows={4} placeholder="Enter treatment details or prescription" />
           </Form.Item>
 
           <Form.Item
             name="notes"
             label="Additional Notes"
           >
-            <TextArea rows={4} placeholder="Additional notes" />
+            <Input.TextArea rows={4} placeholder="Additional notes" />
           </Form.Item>
 
           <Form.Item>

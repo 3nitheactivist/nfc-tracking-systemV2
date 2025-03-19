@@ -270,3 +270,21 @@ app.post("/toggle-server", async (req, res) => {
 app.listen(port, () => {
     console.log(`Express server running on http://localhost:${port}`);
 });
+
+// Enhance your existing server.js to send scanned IDs to the correct clients
+
+// When sending data to clients, include type information
+function broadcastScanData(id, sourceType) {
+  wsServer.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'scan',
+        id: id,
+        source: sourceType // e.g., 'fingerprint', 'nfc', 'barcode'
+      }));
+    }
+  });
+}
+
+// Only set up event handlers for testing when the devices aren't connected
+let testMode = false; // Test mode is now disabled

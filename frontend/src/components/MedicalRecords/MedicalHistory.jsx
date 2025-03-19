@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Space, Button, Input, Modal, message, Tag, Tooltip, Row, Col } from 'antd';
 import { SearchOutlined, DeleteOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
-import { useMedicalRecords } from '../../hooks/useMedicalRecords';
 import { medicalService } from '../../utils/firebase/medicalService';
+import { studentService } from '../../utils/firebase/studentService';
 
 function MedicalHistory() {
   const [records, setRecords] = useState([]);
@@ -14,55 +14,143 @@ function MedicalHistory() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [studentFilter, setStudentFilter] = useState(null);
-  const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
-  const { handleNFCScan, student, scanStatus: studentScanStatus, resetStudent } = useMedicalRecords();
+  const [student, setStudent] = useState(null);
   const [manualNfcId, setManualNfcId] = useState('');
+  const [processing, setProcessing] = useState(false);
 
+  // Use the enhanced NFC scanner hook
+  const { startScan, stopScan, scanning, lastScannedId, scanStatus, clearLastScannedId, setScanning } = useNFCScanner();
+
+  // Set up data fetching
   useEffect(() => {
-    // Set up real-time listener for all records
-    const unsubscribe = subscribeToRecords();
-    
-    // Clean up the listener when component unmounts
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    fetchMedicalRecords();
   }, [studentFilter]);
 
+  // Handle scanned IDs
   useEffect(() => {
-    if (lastScannedId && nfcScanStatus === 'success') {
+    // Log values for debugging
+    console.log("Medical history values:", { scanning, lastScannedId, scanStatus });
+
+    // Only process when we have a successful scan
+    if (scanStatus === 'success' && lastScannedId) {
+      console.log("Medical history processing ID:", lastScannedId);
+      
+      // Stop scanning first
+      stopScan();
+      
+      // Process the scanned ID
       handleStudentScan(lastScannedId);
     }
-  }, [lastScannedId, nfcScanStatus]);
+  }, [scanStatus, lastScannedId, stopScan]);
 
-  const subscribeToRecords = () => {
+  // Add debugging for WebSocket connection
+  useEffect(() => {
+    console.log('Medical history - NFC scan status:', scanStatus);
+    console.log('Medical history - Last scanned ID:', lastScannedId);
+  }, [scanStatus, lastScannedId]);
+
+  const fetchMedicalRecords = async () => {
     setLoading(true);
-    
-    // If we have a student filter, subscribe to that student's records
-    if (studentFilter) {
-      return medicalService.subscribeToStudentMedicalRecords(studentFilter, (studentRecords) => {
-        setRecords(studentRecords);
-        setLoading(false);
+    try {
+      console.log("Fetching medical records", studentFilter ? `for student ${studentFilter}` : "for all students");
+      
+      let recordsQuery;
+      
+      if (studentFilter) {
+        // If we have a student filter, get only that student's records
+        recordsQuery = query(
+          collection(db, 'medicalRecords'),
+          where('patientId', '==', studentFilter),
+          orderBy('visitDate', 'desc')
+        );
+      } else {
+        // Otherwise, get all records
+        recordsQuery = query(
+          collection(db, 'medicalRecords'),
+          orderBy('visitDate', 'desc')
+        );
+      }
+      
+      const querySnapshot = await getDocs(recordsQuery);
+      console.log(`Found ${querySnapshot.size} medical records`);
+      
+      const fetchedRecords = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Convert timestamps to dates
+        const visitDate = data.visitDate?.toDate ? data.visitDate.toDate() : new Date(data.visitDate);
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+        
+        fetchedRecords.push({
+          id: doc.id,
+          ...data,
+          visitDate,
+          createdAt
+        });
       });
-    } 
-    // Otherwise, subscribe to all records
-    else {
-      return medicalService.subscribeToAllMedicalRecords((allRecords) => {
-        setRecords(allRecords);
-        setLoading(false);
-      });
+      
+      setRecords(fetchedRecords);
+    } catch (error) {
+      console.error('Error fetching medical records:', error);
+      message.error('Failed to fetch medical records');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleStudentScan = async (nfcId) => {
-    const success = await handleNFCScan(nfcId);
-    if (success && student) {
-      setStudentFilter(student.id);
+    setProcessing(true);
+    
+    try {
+      console.log("Processing scan in history with ID:", nfcId);
+      
+      // Find student by NFC ID
+      let foundStudent;
+      try {
+        foundStudent = await studentService.getStudentByNfcId(nfcId);
+        console.log("Student lookup result in history:", foundStudent);
+      } catch (err) {
+        console.error('Error fetching student:', err);
+        message.error('Failed to fetch student data');
+        setProcessing(false);
+        return;
+      }
+      
+      if (!foundStudent) {
+        console.log(`No student found with ID: ${nfcId}`);
+        message.error(`No student found with ID: ${nfcId}`);
+        setProcessing(false);
+        return;
+      }
+      
+      console.log("Student found in history:", foundStudent);
+      
+      // Check if student has medical access permission
+      if (!foundStudent.permissions?.medical) {
+        console.log(`${foundStudent.name} does not have medical access permissions`);
+        message.warning(`${foundStudent.name} does not have medical access permissions`);
+        setProcessing(false);
+        return;
+      }
+      
+      // Set the student and filter
+      console.log("Setting student in history state:", foundStudent.name);
+      setStudent(foundStudent);
+      setStudentFilter(foundStudent.id);
+      message.success(`Showing medical records for ${foundStudent.name}`);
+    } catch (err) {
+      console.error('Error processing scan:', err);
+      message.error('Failed to process scan');
+    } finally {
+      setProcessing(false);
     }
   };
 
   const clearStudentFilter = () => {
     setStudentFilter(null);
-    resetStudent();
+    setStudent(null);
+    clearLastScannedId();
   };
 
   const handleDelete = async (recordId) => {
@@ -76,7 +164,7 @@ function MedicalHistory() {
         try {
           await deleteDoc(doc(db, 'medicalRecords', recordId));
           message.success('Record deleted successfully');
-          // No need to manually refresh - the real-time listener will update the UI
+          fetchMedicalRecords(); // Refresh the records
         } catch (error) {
           console.error('Error deleting record:', error);
           message.error('Failed to delete record');
@@ -97,18 +185,14 @@ function MedicalHistory() {
       return;
     }
 
-    // Try different formats of the NFC ID
-    const formattedId = formatNfcId(manualNfcId.trim());
-    await handleStudentScan(formattedId);
+    handleStudentScan(manualNfcId.trim());
+    setManualNfcId('');
   };
 
-  // Format NFC ID to try different variations
-  const formatNfcId = (id) => {
-    // Remove any prefixes and underscores to get the base ID
-    const baseId = id.replace(/^(nfc[_-]?)/i, '').toUpperCase();
-    
-    // Return the original input - the hook will try different formats
-    return baseId;
+  // Start a new scan process
+  const handleStartScan = () => {
+    clearLastScannedId(); // Clear previous ID
+    startScan();
   };
 
   const filteredRecords = records.filter(record => {
@@ -200,11 +284,11 @@ function MedicalHistory() {
               style={{ width: 400 }}
             />
           </Col>
-          <Col>
+          {/* <Col>
             <Button 
               icon={<ScanOutlined />}
-              onClick={scanning ? stopScan : startScan}
-              loading={scanning || studentScanStatus === 'scanning'}
+              onClick={scanning ? stopScan : handleStartScan}
+              loading={scanning || processing}
             >
               {scanning ? 'Cancel Scan' : 'Scan Student Card'}
             </Button>
@@ -217,16 +301,17 @@ function MedicalHistory() {
                 value={manualNfcId}
                 onChange={(e) => setManualNfcId(e.target.value)}
                 onPressEnter={handleManualNfcSubmit}
+                disabled={processing}
               />
               <Button 
                 type="primary" 
                 onClick={handleManualNfcSubmit}
-                loading={studentScanStatus === 'scanning'}
+                loading={processing}
               >
                 Go
               </Button>
             </Input.Group>
-          </Col>
+          </Col> */}
           {studentFilter && (
             <Col>
               <Tag color="blue" closable onClose={clearStudentFilter}>

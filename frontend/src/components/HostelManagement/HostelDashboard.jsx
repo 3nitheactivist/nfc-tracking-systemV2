@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Statistic, List, Typography, Spin, Empty, Select, Progress, Tag, Space, Button, Popconfirm, message } from 'antd';
 import { HomeOutlined, TeamOutlined, UserOutlined, LoginOutlined, LogoutOutlined, DeleteOutlined } from '@ant-design/icons';
 import { hostelService } from '../../utils/firebase/hostelService';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '../../utils/firebase/firebase';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -64,8 +66,23 @@ function HostelDashboard() {
     // Subscribe to recent access events for the selected hostel
     if (!selectedHostel) return;
     
-    const unsubscribe = hostelService.subscribeToHostelAccessEvents(selectedHostel, (events) => {
+    const hostelAccessRef = collection(db, 'hostelAccess');
+    const hostelAccessQuery = query(
+      hostelAccessRef,
+      where('hostelId', '==', selectedHostel),
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(hostelAccessQuery, (snapshot) => {
+      const events = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log(`Dashboard: Received ${events.length} access events for hostel ${selectedHostel}`);
       setRecentEvents(events);
+    }, (error) => {
+      console.error('Error fetching hostel access events for dashboard:', error);
     });
     
     return () => {
@@ -275,7 +292,7 @@ function HostelDashboard() {
                               >
                                 {item.eventType === 'entry' ? 'Entry' : 'Exit'}
                               </Text>
-                              <Text> - {item.timestamp?.toLocaleString()}</Text>
+                              <Text> - {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Unknown time'}</Text>
                               {item.reason && (
                                 <div>
                                   <Text type="secondary">Reason: {item.reason}</Text>

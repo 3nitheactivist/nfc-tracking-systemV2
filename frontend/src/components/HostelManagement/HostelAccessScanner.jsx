@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Input, Alert, Space, Result, Typography, Row, Col, Spin, Badge, Select, List, message } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, Button, Alert, Space, Result, Typography, Row, Col, Spin, Badge, Select, List, message, Empty } from 'antd';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { useHostelAccess } from '../../hooks/useHostelAccess';
 import { hostelService } from '../../utils/firebase/hostelService';
+import { collection, query, where, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
+import { db } from '../../utils/firebase/firebase';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 function HostelAccessScanner() {
-  const [manualNfcId, setManualNfcId] = useState('');
   const [hostels, setHostels] = useState([]);
   const [selectedHostel, setSelectedHostel] = useState(null);
   const [hostelLoading, setHostelLoading] = useState(true);
+  const [scanningLoop, setScanningLoop] = useState(false);
+  const [recentEvents, setRecentEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const loopCountRef = useRef(0);
   
   // NFC scanner integration
   const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
@@ -50,12 +55,69 @@ function HostelAccessScanner() {
     loadHostels();
   }, []);
   
+  // Subscribe to recent access events for the selected hostel
+  useEffect(() => {
+    if (!selectedHostel) return;
+    
+    setEventsLoading(true);
+    console.log(`Subscribing to access events for hostel ID: ${selectedHostel}`);
+    
+    try {
+      const hostelAccessRef = collection(db, 'hostelAccess');
+      const hostelAccessQuery = query(
+        hostelAccessRef,
+        where('hostelId', '==', selectedHostel),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+
+      const unsubscribe = onSnapshot(hostelAccessQuery, (snapshot) => {
+        const events = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        console.log(`Received ${events.length} access events for hostel ${selectedHostel}`);
+        
+        if (events.length > 0) {
+          console.log('Sample event:', events[0]);
+        }
+        
+        setRecentEvents(events);
+        setEventsLoading(false);
+      }, (error) => {
+        console.error('Error fetching hostel access events:', error);
+        setEventsLoading(false);
+      });
+      
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error subscribing to hostel access events:', error);
+      setEventsLoading(false);
+      return () => {};
+    }
+  }, [selectedHostel]);
+  
   // When a new NFC ID is scanned, process it
   useEffect(() => {
     if (lastScannedId && nfcScanStatus === 'success' && selectedHostel) {
       handleNFCScan(lastScannedId, selectedHostel);
+      // Reset loop detection
+      loopCountRef.current = 0;
+      setScanningLoop(false);
     }
   }, [lastScannedId, nfcScanStatus, selectedHostel, handleNFCScan]);
+  
+  // Detect scanning loops
+  useEffect(() => {
+    if (scanning) {
+      loopCountRef.current += 1;
+      
+      // If we detect multiple consecutive scans, we're probably in a loop
+      if (loopCountRef.current > 3) {
+        setScanningLoop(true);
+      }
+    }
+  }, [scanning]);
   
   // Start a new scan process
   const handleStartScan = () => {
@@ -68,20 +130,51 @@ function HostelAccessScanner() {
     startScan();
   };
   
-  // Handle manual NFC ID input
-  const handleManualNfcSubmit = async () => {
-    if (!manualNfcId.trim()) {
-      return;
-    }
+  // Handle refresh - completely reset the scanner
+  const handleRefresh = () => {
+    console.log("Refreshing scanner state");
     
-    if (!selectedHostel) {
-      message.warning('Please select a hostel first');
-      return;
-    }
+    // Stop any active scans
+    stopScan();
     
+    // Reset student data
     resetStudent();
-    await handleNFCScan(manualNfcId.trim(), selectedHostel);
-    setManualNfcId('');
+    
+    // Reset our loop detection
+    loopCountRef.current = 0;
+    setScanningLoop(false);
+    
+    // Refresh the events list - Using direct Firestore query
+    if (selectedHostel) {
+      setEventsLoading(true);
+      
+      // Direct Firestore query to hostelAccess collection
+      const hostelAccessRef = collection(db, 'hostelAccess');
+      const hostelAccessQuery = query(
+        hostelAccessRef,
+        where('hostelId', '==', selectedHostel),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      
+      getDocs(hostelAccessQuery)
+        .then((snapshot) => {
+          const events = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          console.log(`Refreshed: Received ${events.length} access events for hostel`);
+          setRecentEvents(events);
+        })
+        .catch((error) => {
+          console.error('Error refreshing access events:', error);
+        })
+        .finally(() => {
+          setEventsLoading(false);
+        });
+    }
+    
+    message.success("Scanner has been reset");
   };
   
   const handleHostelChange = (value) => {
@@ -89,8 +182,51 @@ function HostelAccessScanner() {
     resetStudent();
   };
   
+  // Format event timestamp
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Unknown time';
+    
+    // Handle Firestore timestamp objects
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toLocaleString();
+    }
+    
+    // Handle Date objects or timestamps
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleString();
+    }
+    
+    // Handle timestamp as seconds or milliseconds
+    if (typeof timestamp === 'number') {
+      return new Date(timestamp * (timestamp < 10000000000 ? 1000 : 1)).toLocaleString();
+    }
+    
+    return 'Unknown time';
+  };
+  
   return (
     <div className="hostel-access-scanner-container">
+      {/* Add the refresh alert when loop is detected */}
+      {scanningLoop && (
+        <Alert
+          message="Scanner issues detected"
+          description="The scanner appears to be stuck in a loop. Click the refresh button to reset."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleRefresh} 
+              type="primary" 
+              danger
+            >
+              Reset Scanner
+            </Button>
+          }
+        />
+      )}
+      
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card>
@@ -99,17 +235,28 @@ function HostelAccessScanner() {
                 <Title level={4}>Hostel Access Control</Title>
               </Col>
               <Col>
-                <Select
-                  placeholder="Select Hostel"
-                  style={{ width: 200 }}
-                  value={selectedHostel}
-                  onChange={handleHostelChange}
-                  loading={hostelLoading}
-                >
-                  {hostels.map(hostel => (
-                    <Option key={hostel.id} value={hostel.id}>{hostel.name}</Option>
-                  ))}
-                </Select>
+                <Space>
+                  <Select
+                    placeholder="Select Hostel"
+                    style={{ width: 200 }}
+                    value={selectedHostel}
+                    onChange={handleHostelChange}
+                    loading={hostelLoading}
+                  >
+                    {hostels.map(hostel => (
+                      <Option key={hostel.id} value={hostel.id}>{hostel.name}</Option>
+                    ))}
+                  </Select>
+                  
+                  {/* Add refresh button in header */}
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={handleRefresh}
+                    title="Reset scanner if it's not working properly"
+                  >
+                    Reset
+                  </Button>
+                </Space>
               </Col>
             </Row>
           </Card>
@@ -121,21 +268,10 @@ function HostelAccessScanner() {
           <Card title="Scan Student ID Card" className="scanner-card">
             <Space direction="vertical" style={{ width: '100%' }}>
               <Alert
-                message="Scan a student's NFC ID card or enter the ID manually"
+                message="Scan a student's NFC ID card to track hostel access"
                 type="info"
                 showIcon
               />
-              
-              <div className="manual-input">
-                <Input.Search
-                  placeholder="Enter NFC ID manually"
-                  value={manualNfcId}
-                  onChange={(e) => setManualNfcId(e.target.value)}
-                  onSearch={handleManualNfcSubmit}
-                  enterButton="Submit"
-                  loading={loading}
-                />
-              </div>
               
               <div className="scan-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
                 <Button
@@ -144,7 +280,7 @@ function HostelAccessScanner() {
                   size="large"
                   onClick={handleStartScan}
                   loading={scanning}
-                  disabled={!selectedHostel}
+                  disabled={scanning || !selectedHostel} // Only disable if actively scanning or no hostel selected
                 >
                   {scanning ? 'Scanning...' : 'Scan NFC Card'}
                 </Button>
@@ -171,6 +307,16 @@ function HostelAccessScanner() {
                       ? (currentAction === 'entry' ? <LoginOutlined /> : <LogoutOutlined />)
                       : <CloseCircleOutlined />
                   }
+                  extra={[
+                    <Button 
+                      key="new-scan" 
+                      type="primary" 
+                      onClick={handleStartScan}
+                      disabled={scanning}
+                    >
+                      New Scan
+                    </Button>
+                  ]}
                 />
               )}
             </Space>
@@ -203,10 +349,14 @@ function HostelAccessScanner() {
                 </div>
                 
                 <Title level={5} style={{ marginTop: 16 }}>Recent Access History</Title>
-                {accessEvents.length > 0 ? (
+                {eventsLoading ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <Spin />
+                  </div>
+                ) : recentEvents.length > 0 ? (
                   <List
                     size="small"
-                    dataSource={accessEvents.slice(0, 5)}
+                    dataSource={recentEvents.slice(0, 5)}
                     renderItem={event => (
                       <List.Item>
                         <Badge 
@@ -217,12 +367,14 @@ function HostelAccessScanner() {
                             </Text>
                           }
                         />
-                        <Text> - {event.timestamp?.toLocaleString()}</Text>
+                        <Text> - {formatTimestamp(event.timestamp)}</Text>
+                        <Text> ({event.studentName || 'Unknown Student'})</Text>
+                        <Text type="secondary"> Room: {event.roomNumber || 'N/A'}</Text>
                       </List.Item>
                     )}
                   />
                 ) : (
-                  <Alert message="No recent access events found" type="info" />
+                  <Empty description="No recent access events found" />
                 )}
               </div>
             ) : (

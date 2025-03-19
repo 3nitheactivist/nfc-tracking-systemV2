@@ -1,340 +1,15 @@
-// // import React, { useState, useEffect } from 'react';
-// // import { Card, Button, Input, Alert, Space, Result, Typography, Row, Col, Spin, Badge } from 'antd';
-// // import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined } from '@ant-design/icons';
-// // import { useNFCScanner } from '../../hooks/useNFCScanner';
-// // import { useCampusAccess } from '../../hooks/useCampusAccess';
-
-// // const { Title, Text } = Typography;
-
-// // function CampusAccessScanner() {
-// //   const [manualNfcId, setManualNfcId] = useState('');
-  
-// //   // NFC scanner integration
-// //   const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
-// //   const { 
-// //     handleNFCScan, 
-// //     student, 
-// //     accessEvents, 
-// //     scanStatus: studentScanStatus, 
-// //     accessStatus,
-// //     currentAction,
-// //     resetStudent,
-// //     recordExit,
-// //     loading
-// //   } = useCampusAccess();
-  
-// //   // When a new NFC ID is scanned, process it
-// //   useEffect(() => {
-// //     if (lastScannedId && nfcScanStatus === 'success') {
-// //       handleNFCScan(lastScannedId);
-// //     }
-// //   }, [lastScannedId, nfcScanStatus, handleNFCScan]);
-  
-// //   // Start a new scan process
-// //   const handleStartScan = () => {
-// //     resetStudent();
-// //     startScan();
-// //   };
-  
-// //   // Handle manual NFC ID input
-// //   const handleManualNfcSubmit = async () => {
-// //     if (!manualNfcId.trim()) {
-// //       return;
-// //     }
-    
-// //     resetStudent();
-// //     await handleNFCScan(manualNfcId.trim());
-// //     setManualNfcId('');
-// //   };
-  
-// //   // Handle student exit
-// //   const handleRecordExit = async () => {
-// //     await recordExit();
-// //     setTimeout(() => {
-// //       resetStudent();
-// //     }, 3000);
-// //   };
-  
-// //   return (
-// //     <div className="campus-access-scanner">
-// //       <Row gutter={[16, 16]}>
-// //         <Col xs={24} md={12}>
-// //           <Card title="Campus Access Scanner" className="scanner-card">
-// //             {!student ? (
-// //               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-// //                 <Space direction="vertical" size="large">
-// //                   <Button 
-// //                     type="primary" 
-// //                     icon={<ScanOutlined />} 
-// //                     onClick={handleStartScan}
-// //                     loading={scanning}
-// //                     size="large"
-// //                   >
-// //                     {scanning ? 'Scanning...' : 'Scan Student Card'}
-// //                   </Button>
-                  
-// //                   <div>
-// //                     <Text>OR</Text>
-// //                   </div>
-                  
-// //                   <Input.Group compact>
-// //                     <Input 
-// //                       style={{ width: 'calc(100% - 80px)' }} 
-// //                       placeholder="Enter NFC ID manually"
-// //                       value={manualNfcId}
-// //                       onChange={(e) => setManualNfcId(e.target.value)}
-// //                       onPressEnter={handleManualNfcSubmit}
-// //                     />
-// //                     <Button 
-// //                       type="primary" 
-// //                       onClick={handleManualNfcSubmit}
-// //                       loading={loading}
-// //                     >
-// //                       Go
-// //                     </Button>
-// //                   </Input.Group>
-                  
-// //                   {(scanning || studentScanStatus === 'scanning') && (
-// //                     <div>
-// //                       <Spin /> <span>Scanning...</span>
-// //                     </div>
-// //                   )}
-// //                 </Space>
-// //               </div>
-// //             ) : (
-// //               <Result
-// //                 icon={accessStatus === 'granted' ? 
-// //                   <CheckCircleOutlined style={{ color: '#52c41a' }} /> : 
-// //                   <CloseCircleOutlined style={{ color: '#f5222d' }} />
-// //                 }
-// //                 title={accessStatus === 'granted' ? 'Access Granted' : 'Access Denied'}
-// //                 subTitle={`Student: ${student.name} (ID: ${student.id})`}
-// //                 extra={[
-// //                   accessStatus === 'granted' && (
-// //                     <Button 
-// //                       key="exit" 
-// //                       type="primary" 
-// //                       danger
-// //                       icon={<LogoutOutlined />}
-// //                       onClick={handleRecordExit}
-// //                     >
-// //                       Record Exit
-// //                     </Button>
-// //                   ),
-// //                   <Button key="new" onClick={resetStudent}>
-// //                     New Scan
-// //                   </Button>
-// //                 ]}
-// //               />
-// //             )}
-// //           </Card>
-// //         </Col>
-        
-// //         <Col xs={24} md={12}>
-// //           <Card title="Recent Access Events" className="events-card">
-// //             {student ? (
-// //               <div>
-// //                 <Title level={4}>{student.name}'s Recent Access</Title>
-// //                 {accessEvents.length > 0 ? (
-// //                   <ul className="event-list">
-// //                     {accessEvents.slice(0, 5).map(event => (
-// //                       <li key={event.id}>
-// //                         <Text type={event.eventType === 'entry' ? 'success' : 'danger'}>
-// //                           {event.eventType === 'entry' ? 'Entry' : 'Exit'}
-// //                         </Text>
-// //                         <Text> - {event.timestamp?.toLocaleString()}</Text>
-// //                       </li>
-// //                     ))}
-// //                   </ul>
-// //                 ) : (
-// //                   <Alert message="No recent access events found" type="info" />
-// //                 )}
-// //               </div>
-// //             ) : (
-// //               <Alert message="Scan a student card to view their recent access events" type="info" />
-// //             )}
-// //           </Card>
-// //         </Col>
-// //       </Row>
-// //     </div>
-// //   );
-// // }
-
-// // export default CampusAccessScanner;
-
-// import React, { useState, useEffect } from 'react';
-// import { Card, Button, Input, Alert, Space, Result, Typography, Row, Col, Spin, Badge } from 'antd';
-// import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined } from '@ant-design/icons';
-// import { useNFCScanner } from '../../hooks/useNFCScanner';
-// import { useCampusAccess } from '../../hooks/useCampusAccess';
-
-// const { Title, Text } = Typography;
-
-// function CampusAccessScanner() {
-//   const [manualNfcId, setManualNfcId] = useState('');
-  
-//   // NFC scanner integration
-//   const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
-//   const { 
-//     handleNFCScan, 
-//     student, 
-//     accessEvents, 
-//     scanStatus: studentScanStatus, 
-//     accessStatus,
-//     currentAction,
-//     resetStudent,
-//     recordExit,
-//     loading
-//   } = useCampusAccess();
-  
-//   // When a new NFC ID is scanned, process it
-//   useEffect(() => {
-//     if (lastScannedId && nfcScanStatus === 'success') {
-//       handleNFCScan(lastScannedId);
-//     }
-//   }, [lastScannedId, nfcScanStatus, handleNFCScan]);
-  
-//   // Start a new scan process
-//   const handleStartScan = () => {
-//     resetStudent();
-//     startScan();
-//   };
-  
-//   // Handle manual NFC ID input
-//   const handleManualNfcSubmit = async () => {
-//     if (!manualNfcId.trim()) {
-//       return;
-//     }
-    
-//     resetStudent();
-//     await handleNFCScan(manualNfcId.trim());
-//     setManualNfcId('');
-//   };
-  
-//   // Handle student exit
-//   const handleRecordExit = async () => {
-//     await recordExit();
-//     setTimeout(() => {
-//       resetStudent();
-//     }, 3000);
-//   };
-  
-//   return (
-//     <div className="campus-access-scanner">
-//       <Row gutter={[16, 16]}>
-//         <Col xs={24} md={12}>
-//           <Card title="Campus Access Scanner" className="scanner-card">
-//             {!student ? (
-//               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-//                 <Space direction="vertical" size="large">
-//                   <Button 
-//                     type="primary" 
-//                     icon={<ScanOutlined />} 
-//                     onClick={handleStartScan}
-//                     loading={scanning}
-//                     size="large"
-//                   >
-//                     {scanning ? 'Scanning...' : 'Scan Student Card'}
-//                   </Button>
-                  
-//                   <div>
-//                     <Text>OR</Text>
-//                   </div>
-                  
-//                   <Input.Group compact>
-//                     <Input 
-//                       style={{ width: 'calc(100% - 80px)' }} 
-//                       placeholder="Enter NFC ID manually"
-//                       value={manualNfcId}
-//                       onChange={(e) => setManualNfcId(e.target.value)}
-//                       onPressEnter={handleManualNfcSubmit}
-//                     />
-//                     <Button 
-//                       type="primary" 
-//                       onClick={handleManualNfcSubmit}
-//                       loading={loading}
-//                     >
-//                       Go
-//                     </Button>
-//                   </Input.Group>
-                  
-//                   {(scanning || studentScanStatus === 'scanning') && (
-//                     <div>
-//                       <Spin /> <span>Scanning...</span>
-//                     </div>
-//                   )}
-//                 </Space>
-//               </div>
-//             ) : (
-//               <Result
-//                 icon={accessStatus === 'granted' ? 
-//                   currentAction === 'entry' ? 
-//                     <LoginOutlined style={{ color: '#52c41a' }} /> : 
-//                     <LogoutOutlined style={{ color: '#1890ff' }} />
-//                   : 
-//                   <CloseCircleOutlined style={{ color: '#f5222d' }} />
-//                 }
-//                 title={
-//                   accessStatus === 'granted' ? 
-//                     `${currentAction === 'entry' ? 'Check-In' : 'Check-Out'} Successful` : 
-//                     'Access Denied'
-//                 }
-//                 subTitle={`Student: ${student.name} (ID: ${student.id})`}
-//                 extra={[
-//                   <Button key="new" onClick={resetStudent}>
-//                     New Scan
-//                   </Button>
-//                 ]}
-//               />
-//             )}
-//           </Card>
-//         </Col>
-        
-//         <Col xs={24} md={12}>
-//           <Card title="Recent Access Events" className="events-card">
-//             {student ? (
-//               <div>
-//                 <Title level={4}>{student.name}'s Recent Access</Title>
-//                 {accessEvents.length > 0 ? (
-//                   <ul className="event-list">
-//                     {accessEvents.slice(0, 5).map(event => (
-//                       <li key={event.id}>
-//                         <Badge 
-//                           status={event.eventType === 'entry' ? 'success' : 'processing'} 
-//                           text={
-//                             <Text type={event.eventType === 'entry' ? 'success' : 'secondary'}>
-//                               {event.eventType === 'entry' ? 'Check-In' : 'Check-Out'}
-//                             </Text>
-//                           }
-//                         />
-//                         <Text> - {event.timestamp?.toLocaleString()}</Text>
-//                       </li>
-//                     ))}
-//                   </ul>
-//                 ) : (
-//                   <Alert message="No recent access events found" type="info" />
-//                 )}
-//               </div>
-//             ) : (
-//               <Alert message="Scan a student card to view their recent access events" type="info" />
-//             )}
-//           </Card>
-//         </Col>
-//       </Row>
-//     </div>
-//   );
-// }
-
-// export default CampusAccessScanner;
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Input, Alert, Space, Result, Typography, Row, Col, Spin, Badge, Pagination, Empty, Tag } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined } from '@ant-design/icons';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { useCampusAccess } from '../../hooks/useCampusAccess';
 
 const { Title, Text } = Typography;
 
 function CampusAccessScanner() {
+  // Add this state to track if we're in a loop
+  const [scanningLoop, setScanningLoop] = useState(false);
+  const loopCountRef = useRef(0);
   const [manualNfcId, setManualNfcId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5; // Show 5 events per page
@@ -357,8 +32,23 @@ function CampusAccessScanner() {
   useEffect(() => {
     if (lastScannedId && nfcScanStatus === 'success') {
       handleNFCScan(lastScannedId);
+      // Reset the loop counter when a scan completes successfully
+      loopCountRef.current = 0;
+      setScanningLoop(false);
     }
   }, [lastScannedId, nfcScanStatus, handleNFCScan]);
+  
+  // Detect scanning loops
+  useEffect(() => {
+    if (scanning) {
+      loopCountRef.current += 1;
+      
+      // If we detect multiple consecutive scans, we're probably in a loop
+      if (loopCountRef.current > 3) {
+        setScanningLoop(true);
+      }
+    }
+  }, [scanning]);
   
   // Reset to first page when student changes
   useEffect(() => {
@@ -368,7 +58,27 @@ function CampusAccessScanner() {
   // Start a new scan process
   const handleStartScan = () => {
     resetStudent();
+    loopCountRef.current = 0;
+    setScanningLoop(false);
     startScan();
+  };
+  
+  // Add a hard refresh function
+  const handleHardRefresh = () => {
+    console.log("Hard refresh triggered");
+    // First stop any active scans
+    stopScan();
+    
+    // Reset student and state
+    resetStudent();
+    
+    // Reset our loop detection
+    loopCountRef.current = 0;
+    setScanningLoop(false);
+    
+    // Reset the state of the component
+    setManualNfcId('');
+    setCurrentPage(1);
   };
   
   // Handle manual NFC ID input
@@ -401,9 +111,41 @@ function CampusAccessScanner() {
   
   return (
     <div className="campus-access-scanner">
+      {/* Add the refresh button at the top when a loop is detected */}
+      {scanningLoop && (
+        <Alert
+          message="Scanner issues detected"
+          description="The scanner appears to be stuck in a loop. Click the refresh button to reset."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleHardRefresh} 
+              type="primary" 
+              danger
+            >
+              Reset Scanner
+            </Button>
+          }
+        />
+      )}
+      
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="Campus Access Scanner" className="scanner-card">
+          <Card 
+            title="Campus Access Scanner" 
+            className="scanner-card"
+            extra={
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleHardRefresh}
+                type="text"
+                title="Reset scanner if it's not working properly"
+              />
+            }
+          >
             {!student ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <Space direction="vertical" size="large">
@@ -413,6 +155,7 @@ function CampusAccessScanner() {
                     onClick={handleStartScan}
                     loading={scanning}
                     size="large"
+                    disabled={scanningLoop} // Disable if we're in a loop
                   >
                     {scanning ? 'Scanning...' : 'Scan Student Card'}
                   </Button>
@@ -461,7 +204,7 @@ function CampusAccessScanner() {
                 }
                 subTitle={`Student: ${student.name} (ID: ${student.id})`}
                 extra={[
-                  <Button key="new" onClick={resetStudent}>
+                  <Button key="new" onClick={handleHardRefresh}>
                     New Scan
                   </Button>
                 ]}

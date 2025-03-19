@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Row,
   Col,
@@ -14,7 +14,10 @@ import {
   Alert,
   Spin,
   Input,
-  Modal
+  Modal,
+  Form,
+  Select,
+  message
 } from 'antd';
 import {
   ScanOutlined,
@@ -22,7 +25,10 @@ import {
   CloseCircleOutlined,
   UserOutlined,
   BookOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  LogoutOutlined,
+  LoginOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
@@ -31,9 +37,11 @@ import { libraryService } from '../../utils/firebase/libraryService';
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
+const { Option } = Select;
 
-function LibraryAccessScanner() {
-  const [scanning, setScanning] = useState(false);
+const LibraryAccessScanner = () => {
+  const [form] = Form.useForm();
+  const [manualForm] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [studentData, setStudentData] = useState(null);
   const [accessType, setAccessType] = useState(null); // 'check-in' or 'check-out'
@@ -42,43 +50,123 @@ function LibraryAccessScanner() {
   const [error, setError] = useState(null);
   const [manualNfcId, setManualNfcId] = useState('');
   const [manualInputVisible, setManualInputVisible] = useState(false);
+  const [tagId, setTagId] = useState('');
+  const [student, setStudent] = useState(null);
+  const [location, setLocation] = useState('Main Library');
+  const [reason, setReason] = useState('Study');
+  const [success, setSuccess] = useState(null);
+  const [inLibrary, setInLibrary] = useState(false);
+  const [activeAccessRecord, setActiveAccessRecord] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const inputRef = useRef(null);
 
-  // Use the NFC scanner hook
-  const { startScan, stopScan, scanStatus, lastScannedId } = useNFCScanner();
+  const {
+    scanning,
+    startScan,
+    stopScan,
+    lastScannedId,
+    scanStatus
+  } = useNFCScanner();
 
-  // Start scanning when the component mounts
-  useEffect(() => {
-    if (currentStep === 0 && scanning) {
-      try {
-        startScan();
-      } catch (err) {
-        console.error('Error starting scan:', err);
-        setError('Failed to start NFC scanner. Please try again.');
-        setScanning(false);
+  // Define handleNFCScan before useEffect
+  const handleNFCScan = async (nfcId) => {
+    console.log('Processing scan with ID:', nfcId);
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Find student by NFC ID
+      const foundStudent = await studentService.getStudentByNfcId(nfcId);
+      
+      if (!foundStudent) {
+        setError(`No student found with ID: ${nfcId}`);
+        setProcessing(false);
+        return;
       }
+
+      if (!foundStudent.permissions?.library) {
+        setError(`${foundStudent.name} does not have library access permissions`);
+        setProcessing(false);
+        return;
+      }
+
+      // Check if student is already in library
+      const { inLibrary } = await libraryService.isStudentInLibrary(foundStudent.id);
+      console.log(`Student ${foundStudent.name} in library: ${inLibrary}`);
+      
+      // Set data for verification step
+      setStudentData(foundStudent);
+      setAccessType(inLibrary ? 'check-out' : 'check-in');
+      
+      // Move to verification step
+      setCurrentStep(1);
+      
+    } catch (error) {
+      console.error('Error processing scan:', error);
+      setError('Failed to process scan. Please try again.');
+    } finally {
+      setProcessing(false);
+      stopScan();
     }
-    
-    return () => {
-      if (scanning) {
-        try {
-          stopScan();
-        } catch (err) {
-          console.error('Error stopping scan:', err);
-        }
+  };
+
+  // Fetch all students for manual selection
+  useEffect(() => {
+    const fetchStudents = async () => {
+      setLoadingStudents(true);
+      try {
+        const studentsData = await studentService.getAllStudents();
+        setStudents(studentsData);
+      } catch (err) {
+        console.error('Error fetching students:', err);
+        message.error('Failed to load students');
+      } finally {
+        setLoadingStudents(false);
       }
     };
-  }, [scanning, currentStep, startScan, stopScan]);
 
-  // Handle NFC scan result
+    fetchStudents();
+  }, []);
+
+  // Focus input when scanning starts
   useEffect(() => {
-    if (lastScannedId && scanning) {
+    if (scanning && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [scanning]);
+
+  // Reset form when student changes
+  useEffect(() => {
+    form.resetFields();
+    if (student) {
+      checkIfStudentInLibrary(student.id);
+    } else {
+      setInLibrary(false);
+      setActiveAccessRecord(null);
+    }
+  }, [student, form]);
+
+  // Add debugging for WebSocket connection
+  useEffect(() => {
+    console.log('NFC scan status:', scanStatus);
+    console.log('Last scanned ID:', lastScannedId);
+  }, [scanStatus, lastScannedId, scanning]);
+
+  // Add this effect to process the scanned ID
+  useEffect(() => {
+    if (lastScannedId && scanStatus === 'success') {
+      console.log('Processing scanned ID in library:', lastScannedId);
       handleNFCScan(lastScannedId);
     }
-  }, [lastScannedId, scanning]);
+  }, [lastScannedId, scanStatus]);
 
   const handleStartScan = () => {
-    setScanning(true);
+    setStudent(null);
     setError(null);
+    setProcessing(false);
+    startScan();
   };
 
   const showManualInputModal = () => {
@@ -91,79 +179,20 @@ function LibraryAccessScanner() {
 
   const handleManualInputSubmit = () => {
     if (manualNfcId.trim()) {
+      setProcessing(true);
       handleNFCScan(manualNfcId.trim());
       setManualInputVisible(false);
     }
   };
 
-  const handleNFCScan = async (nfcId) => {
-    setScanning(false);
-    try {
-      stopScan();
-    } catch (err) {
-      console.error('Error stopping scan:', err);
-    }
-    
-    try {
-      // For testing purposes, create a mock student if studentService fails
-      let student;
-      try {
-        student = await studentService.getStudentByNfcId(nfcId);
-      } catch (err) {
-        console.error('Error fetching student, using mock data:', err);
-        // Mock student data for testing
-        student = {
-          id: 'student-123',
-          name: 'John Doe',
-          studentId: 'S12345',
-          department: 'Computer Science',
-          year: '3rd Year',
-          nfcId: nfcId
-        };
-      }
-      
-      if (!student) {
-        setError(`No student found with NFC ID: ${nfcId}. Please make sure the student is enrolled.`);
-        return;
-      }
-      
-      setStudentData(student);
-      
-      // Check if student is already in the library
-      let isInLibrary = false;
-      try {
-        isInLibrary = await checkIfStudentInLibrary(student.id);
-      } catch (err) {
-        console.error('Error checking if student is in library:', err);
-        // Default to check-in if there's an error
-        isInLibrary = false;
-      }
-      
-      setAccessType(isInLibrary ? 'check-out' : 'check-in');
-      
-      // Move to the next step
-      setCurrentStep(1);
-    } catch (err) {
-      console.error('Error processing NFC scan:', err);
-      setError('Failed to process NFC scan. Please try again.');
-    }
-  };
-
   const checkIfStudentInLibrary = async (studentId) => {
     try {
-      // Get the student's recent access history
-      const accessHistory = await libraryService.getStudentAccessHistory(studentId, 1);
+      const isInLibrary = await libraryService.isStudentInLibrary(studentId);
+      setInLibrary(isInLibrary);
       
-      // If the most recent record is a check-in, the student is in the library
-      if (accessHistory && accessHistory.length > 0) {
-        const lastAccess = accessHistory[0];
-        return lastAccess.accessType === 'check-in';
-      }
-      
-      return false;
+      setActiveAccessRecord(isInLibrary ? { studentId } : null);
     } catch (error) {
-      console.error('Error checking if student is in library:', error);
-      return false;
+      console.error('Error checking library status:', error);
     }
   };
 
@@ -175,34 +204,17 @@ function LibraryAccessScanner() {
         studentId: studentData.id,
         studentName: studentData.name,
         accessType: accessType,
-        location: 'Main Library',
-        timestamp: new Date()
+        location: location,
+        reason: reason,
+        status: 'active'
       };
-      
-      // If this is a check-out, calculate the duration of stay
-      if (accessType === 'check-out') {
-        // Get the student's last check-in
-        const accessHistory = await libraryService.getStudentAccessHistory(studentData.id, 10);
-        
-        // Find the most recent check-in
-        const lastCheckIn = accessHistory.find(record => record.accessType === 'check-in');
-        
-        if (lastCheckIn && lastCheckIn.timestamp) {
-          const checkInTime = new Date(lastCheckIn.timestamp.seconds * 1000);
-          const checkOutTime = new Date();
-          
-          const durationMs = checkOutTime - checkInTime;
-          const durationMinutes = Math.floor(durationMs / (1000 * 60));
-          
-          accessData.duration = durationMinutes;
-        }
-      }
       
       const result = await libraryService.recordAccess(accessData);
       
       if (result.success) {
         setAccessResult(result);
         setCurrentStep(2);
+        setSuccess(`${studentData.name} has been checked ${accessType === 'check-in' ? 'in' : 'out'} of the library`);
       } else {
         throw new Error('Failed to record access');
       }
@@ -215,14 +227,36 @@ function LibraryAccessScanner() {
   };
 
   const resetScanner = () => {
-    setScanning(false);
+    setProcessing(false);
     setCurrentStep(0);
     setStudentData(null);
     setAccessType(null);
     setAccessResult(null);
     setError(null);
     setManualNfcId('');
+    setTagId('');
+    setStudent(null);
+    setLocation('Main Library');
+    setReason('Study');
+    setSuccess(null);
+    setInLibrary(false);
+    setActiveAccessRecord(null);
+    form.resetFields();
+    manualForm.resetFields();
   };
+
+  // Toggle between NFC and manual mode
+  const toggleMode = () => {
+    setManualMode(!manualMode);
+    setStudentData(null);
+    setAccessType(null);
+    setAccessResult(null);
+    setError(null);
+    setManualNfcId('');
+  };
+
+  // Custom loading icon
+  const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
 
   return (
     <motion.div
@@ -254,6 +288,28 @@ function LibraryAccessScanner() {
           />
         )}
         
+        {/* Global processing indicator */}
+        {processing && (
+          <div style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: 'rgba(255, 255, 255, 0.7)', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            zIndex: 1000,
+            borderRadius: '8px'
+          }}>
+            <Space direction="vertical" align="center">
+              <Spin indicator={antIcon} size="large" />
+              <Text strong>Processing request...</Text>
+            </Space>
+          </div>
+        )}
+        
         <AnimatePresence mode="wait">
           {currentStep === 0 && (
             <motion.div
@@ -267,13 +323,13 @@ function LibraryAccessScanner() {
                 <Space direction="vertical" size="large">
                   {scanning ? (
                     <>
-                      <Spin size="large" />
+                      <Spin indicator={antIcon} size="large" />
                       <Title level={3}>Scanning...</Title>
                       <Text type="secondary">Please place your student ID card on the scanner</Text>
                       <Button 
                         type="default" 
                         onClick={() => {
-                          setScanning(false);
+                          setProcessing(false);
                           try {
                             stopScan();
                           } catch (err) {
@@ -297,6 +353,7 @@ function LibraryAccessScanner() {
                           icon={<ScanOutlined />} 
                           onClick={handleStartScan}
                           style={{ marginTop: 16 }}
+                          disabled={processing} // Disable when processing
                         >
                           Start Scanning
                         </Button>
@@ -305,6 +362,7 @@ function LibraryAccessScanner() {
                           size="large"
                           onClick={showManualInputModal}
                           style={{ marginTop: 16 }}
+                          disabled={processing} // Disable when processing
                         >
                           Enter NFC ID Manually
                         </Button>
@@ -358,7 +416,7 @@ function LibraryAccessScanner() {
               
               <div style={{ textAlign: 'center', marginTop: 24 }}>
                 <Space>
-                  <Button onClick={resetScanner}>Cancel</Button>
+                  <Button onClick={resetScanner} disabled={processing}>Cancel</Button>
                   <Button 
                     type="primary" 
                     onClick={handleConfirmAccess}
@@ -404,12 +462,14 @@ function LibraryAccessScanner() {
         open={manualInputVisible}
         onOk={handleManualInputSubmit}
         onCancel={handleManualInputCancel}
+        confirmLoading={processing} // Show loading on confirm button
       >
         <Input
           placeholder="Enter NFC ID"
           value={manualNfcId}
           onChange={(e) => setManualNfcId(e.target.value)}
           style={{ marginBottom: 16 }}
+          disabled={processing} // Disable when processing
         />
         <Text type="secondary">
           Enter the NFC ID of a student that is already enrolled in the database.
@@ -417,6 +477,6 @@ function LibraryAccessScanner() {
       </Modal>
     </motion.div>
   );
-}
+};
 
 export default LibraryAccessScanner;

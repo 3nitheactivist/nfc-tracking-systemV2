@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Input, Button, Select, Alert, Space, Result, Typography, Spin, message, Badge, Row, Col } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
+import { useNFCScanner } from '../../hooks/useNFCScanner';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 function AttendanceScanner() {
-  const [nfcId, setNfcId] = useState('');
   const [loading, setLoading] = useState(false);
   const [student, setStudent] = useState(null);
   const [scanStatus, setScanStatus] = useState(null); // 'success', 'error', or null
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [recentAttendance, setRecentAttendance] = useState([]);
+  const [scanningLoop, setScanningLoop] = useState(false);
+  const loopCountRef = useRef(0);
+
+  // NFC scanner integration
+  const { startScan, stopScan, scanning, lastScannedId, scanStatus: nfcScanStatus } = useNFCScanner();
 
   // Load courses on component mount
   useEffect(() => {
@@ -36,26 +41,37 @@ function AttendanceScanner() {
     loadCourses();
   }, []);
 
-  // Handle NFC ID input
-  const handleNfcIdChange = (e) => {
-    setNfcId(e.target.value);
-  };
-
   // Handle course selection
   const handleCourseChange = (value) => {
     setSelectedCourse(value);
     // Reset student data when course changes
-    setStudent(null);
-    setScanStatus(null);
+    resetScan();
   };
 
-  // Handle NFC scan
-  const handleScan = async () => {
-    if (!nfcId.trim()) {
-      message.warning('Please enter an NFC ID');
-      return;
+  // Process scanned NFC ID when received
+  useEffect(() => {
+    if (lastScannedId && nfcScanStatus === 'success' && selectedCourse) {
+      processNfcId(lastScannedId);
+      // Reset loop detection
+      loopCountRef.current = 0;
+      setScanningLoop(false);
     }
+  }, [lastScannedId, nfcScanStatus, selectedCourse]);
 
+  // Detect scanning loops
+  useEffect(() => {
+    if (scanning) {
+      loopCountRef.current += 1;
+      
+      // If we detect multiple consecutive scans, we're probably in a loop
+      if (loopCountRef.current > 3) {
+        setScanningLoop(true);
+      }
+    }
+  }, [scanning]);
+
+  // Process the NFC ID
+  const processNfcId = async (nfcId) => {
     if (!selectedCourse) {
       message.warning('Please select a course first');
       return;
@@ -152,150 +168,201 @@ function AttendanceScanner() {
     }
   };
 
+  // Start a new scan
+  const handleStartScan = () => {
+    if (!selectedCourse) {
+      message.warning('Please select a course first');
+      return;
+    }
+    
+    resetScan();
+    startScan();
+  };
+
   // Reset scan
   const resetScan = () => {
-    setNfcId('');
+    stopScan();
     setStudent(null);
     setScanStatus(null);
     setRecentAttendance([]);
   };
 
+  // Handle refresh - completely reset the scanner
+  const handleRefresh = () => {
+    console.log("Refreshing scanner state");
+    
+    // Stop any active scans
+    stopScan();
+    
+    // Reset student data
+    resetScan();
+    
+    // Reset our loop detection
+    loopCountRef.current = 0;
+    setScanningLoop(false);
+    
+    message.success("Scanner has been reset");
+  };
+
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} md={12}>
-        <Card title="Class Attendance Scanner" className="scanner-card">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Alert
-              message="Scan student's NFC ID card or enter the ID manually"
-              type="info"
-              showIcon
-            />
-            
-            <div style={{ marginBottom: 16 }}>
-              <Select
-                placeholder="Select Course"
-                style={{ width: '100%', marginBottom: 16 }}
-                value={selectedCourse}
-                onChange={handleCourseChange}
-              >
-                {courses.map(course => (
-                  <Option key={course.id} value={course.id}>
-                    {course.code} - {course.name} (Level {course.level})
-                  </Option>
-                ))}
-              </Select>
-              
-              <Input.Search
-                placeholder="Enter NFC ID"
-                value={nfcId}
-                onChange={handleNfcIdChange}
-                onSearch={handleScan}
-                enterButton="Submit"
-                loading={loading}
-                disabled={!selectedCourse}
+    <div className="attendance-scanner-container">
+      {/* Add the refresh alert when loop is detected */}
+      {scanningLoop && (
+        <Alert
+          message="Scanner issues detected"
+          description="The scanner appears to be stuck in a loop. Click the refresh button to reset."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleRefresh} 
+              type="primary" 
+              danger
+            >
+              Reset Scanner
+            </Button>
+          }
+        />
+      )}
+    
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12}>
+          <Card title="Class Attendance Scanner" className="scanner-card">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Alert
+                message="Scan a student's NFC ID card to mark attendance"
+                type="info"
+                showIcon
               />
-            </div>
-            
-            <div style={{ textAlign: 'center', margin: '20px 0' }}>
-              <Button
-                type="primary"
-                icon={<ScanOutlined />}
-                size="large"
-                onClick={handleScan}
-                loading={loading}
-                disabled={!nfcId.trim() || !selectedCourse}
-              >
-                {loading ? 'Scanning...' : 'Scan NFC Card'}
-              </Button>
               
-              {student && (
-                <Button
-                  type="default"
-                  style={{ marginLeft: 8 }}
-                  onClick={resetScan}
+              <div style={{ marginBottom: 16 }}>
+                <Select
+                  placeholder="Select Course"
+                  style={{ width: '100%', marginBottom: 16 }}
+                  value={selectedCourse}
+                  onChange={handleCourseChange}
                 >
-                  Reset
-                </Button>
-              )}
-            </div>
-            
-            {loading && (
-              <div style={{ textAlign: 'center', margin: '20px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: 16 }}>Processing...</div>
-              </div>
-            )}
-            
-            {scanStatus && (
-              <Result
-                status={scanStatus === 'success' ? 'success' : scanStatus === 'warning' ? 'warning' : 'error'}
-                title={
-                  scanStatus === 'success' ? 'Attendance Recorded' : 
-                  scanStatus === 'warning' ? 'Already Recorded' : 
-                  'Scan Failed'
-                }
-                subTitle={
-                  scanStatus === 'success' ? 
-                    `${student?.name} has been marked present for ${courses.find(c => c.id === selectedCourse)?.name}` :
-                  scanStatus === 'warning' ?
-                    `${student?.name} was already marked for this course today` :
-                    'Could not record attendance'
-                }
-                icon={
-                  scanStatus === 'success' ? <CheckCircleOutlined /> : 
-                  scanStatus === 'warning' ? <CheckCircleOutlined /> :
-                  <CloseCircleOutlined />
-                }
-              />
-            )}
-          </Space>
-        </Card>
-      </Col>
-      
-      <Col xs={24} md={12}>
-        <Card 
-          title="Student Information" 
-          className="student-info-card"
-        >
-          {student ? (
-            <div>
-              <div className="student-details">
-                <Title level={4}>{student.name}</Title>
-                <Text>Student ID: {student.schoolId || student.studentId || 'N/A'}</Text>
-                <div style={{ margin: '16px 0' }}>
-                  <Badge 
-                    status={scanStatus === 'success' ? 'success' : scanStatus === 'warning' ? 'warning' : 'error'} 
-                    text={
-                      scanStatus === 'success' ? 'Attendance Recorded' : 
-                      scanStatus === 'warning' ? 'Already Recorded Today' : 
-                      'Failed to Record'
-                    } 
-                  />
-                </div>
+                  {courses.map(course => (
+                    <Option key={course.id} value={course.id}>
+                      {course.code} - {course.name} (Level {course.level})
+                    </Option>
+                  ))}
+                </Select>
               </div>
               
-              <Title level={5} style={{ marginTop: 16 }}>Recent Attendance History</Title>
-              {recentAttendance.length > 0 ? (
-                <ul className="attendance-list">
-                  {recentAttendance.map(record => (
-                    <li key={record.id} className="attendance-item">
-                      <Badge status="success" text={record.courseName} />
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
-                        {record.timestamp?.toLocaleString() || 'N/A'}
-                      </Text>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Alert message="No recent attendance records found" type="info" />
+              <div className="scan-button-container" style={{ textAlign: 'center', margin: '20px 0' }}>
+                <Button
+                  type="primary"
+                  icon={<ScanOutlined />}
+                  size="large"
+                  onClick={handleStartScan}
+                  loading={scanning}
+                  disabled={scanning || !selectedCourse}
+                >
+                  {scanning ? 'Scanning...' : 'Scan NFC Card'}
+                </Button>
+                
+                {student && (
+                  <Button
+                    type="default"
+                    style={{ marginLeft: 8 }}
+                    onClick={resetScan}
+                  >
+                    Reset
+                  </Button>
+                )}
+                
+                {/* Add refresh button for scanner issues */}
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={handleRefresh}
+                  style={{ marginLeft: 8 }}
+                  title="Reset scanner if it's not working properly"
+                >
+                  Reset Scanner
+                </Button>
+              </div>
+              
+              {loading && (
+                <div style={{ textAlign: 'center', margin: '20px 0' }}>
+                  <Spin size="large" />
+                  <div style={{ marginTop: 16 }}>Processing...</div>
+                </div>
               )}
-            </div>
-          ) : (
-            <Alert message="Scan a student card to view their information" type="info" />
-          )}
-        </Card>
-      </Col>
-    </Row>
+              
+              {scanStatus && (
+                <Result
+                  status={scanStatus === 'success' ? 'success' : scanStatus === 'warning' ? 'warning' : 'error'}
+                  title={
+                    scanStatus === 'success' ? 'Attendance Recorded' : 
+                    scanStatus === 'warning' ? 'Already Recorded' : 
+                    'Scan Failed'
+                  }
+                  subTitle={
+                    scanStatus === 'success' ? 
+                      `${student?.name} has been marked present for ${courses.find(c => c.id === selectedCourse)?.name}` :
+                    scanStatus === 'warning' ?
+                      `${student?.name} was already marked for this course today` :
+                      'Could not record attendance'
+                  }
+                  icon={
+                    scanStatus === 'success' ? <CheckCircleOutlined /> : 
+                    scanStatus === 'warning' ? <CheckCircleOutlined /> :
+                    <CloseCircleOutlined />
+                  }
+                />
+              )}
+            </Space>
+          </Card>
+        </Col>
+        
+        <Col xs={24} md={12}>
+          <Card 
+            title="Student Information" 
+            className="student-info-card"
+          >
+            {student ? (
+              <div>
+                <div className="student-details">
+                  <Title level={4}>{student.name}</Title>
+                  <Text>Student ID: {student.schoolId || student.studentId || 'N/A'}</Text>
+                  <div style={{ margin: '16px 0' }}>
+                    <Badge 
+                      status={scanStatus === 'success' ? 'success' : scanStatus === 'warning' ? 'warning' : 'error'} 
+                      text={
+                        scanStatus === 'success' ? 'Attendance Recorded' : 
+                        scanStatus === 'warning' ? 'Already Recorded Today' : 
+                        'Failed to Record'
+                      } 
+                    />
+                  </div>
+                </div>
+                
+                <Title level={5} style={{ marginTop: 16 }}>Recent Attendance History</Title>
+                {recentAttendance.length > 0 ? (
+                  <ul className="attendance-list">
+                    {recentAttendance.map(record => (
+                      <li key={record.id} className="attendance-item">
+                        <Badge status="success" text={record.courseName} />
+                        <Text type="secondary" style={{ marginLeft: 8 }}>
+                          {record.timestamp?.toLocaleString() || 'N/A'}
+                        </Text>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Alert message="No recent attendance records found" type="info" />
+                )}
+              </div>
+            ) : (
+              <Alert message="Scan a student card to view their information" type="info" />
+            )}
+          </Card>
+        </Col>
+      </Row>
+    </div>
   );
 }
 
