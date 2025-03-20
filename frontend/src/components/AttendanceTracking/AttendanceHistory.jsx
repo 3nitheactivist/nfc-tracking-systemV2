@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Card, DatePicker, Select, Input, Button, Space, Row, Col, message, Tag } from 'antd';
-import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { SearchOutlined, FilterOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import { 
   collection, 
   query, 
@@ -182,7 +182,10 @@ function AttendanceHistory() {
             );
           }
           
-          setAttendanceData(filteredResults);
+          // Enrich with student data
+          const enrichedResults = await enrichWithStudentData(filteredResults);
+          
+          setAttendanceData(enrichedResults);
           setLoading(false);
         } catch (error) {
           console.error('Error processing attendance data:', error);
@@ -236,6 +239,38 @@ function AttendanceHistory() {
   // Table columns
   const columns = [
     {
+      title: "Photo",
+      key: "photo",
+      width: 60,
+      render: (_, record) => (
+        <div style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: '50%',
+          overflow: 'hidden',
+          background: '#f0f2f5',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {record.profileImage?.data ? (
+            <img 
+              src={record.profileImage.data}
+              alt={record.studentName || record.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+              }}
+            />
+          ) : (
+            <UserOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+          )}
+        </div>
+      )
+    },
+    {
       title: 'Date & Time',
       dataIndex: 'timestamp',
       key: 'timestamp',
@@ -270,6 +305,42 @@ function AttendanceHistory() {
       onFilter: (value, record) => record.status === value,
     },
   ];
+
+  // Enrich with student data
+  const enrichWithStudentData = async (records) => {
+    if (!records.length) return records;
+    
+    const studentIds = records.map(record => record.studentId).filter(Boolean);
+    if (!studentIds.length) return records;
+    
+    try {
+      const studentsRef = collection(db, "students");
+      const studentSnapshots = await Promise.all(
+        studentIds.map(async (studentId) => {
+          if (!studentId) return null;
+          const studentQuery = query(studentsRef, where("__name__", "==", studentId));
+          const snapshot = await getDocs(studentQuery);
+          return snapshot.empty ? null : { id: studentId, ...snapshot.docs[0].data() };
+        })
+      );
+      
+      const studentDataMap = studentSnapshots.reduce((map, student) => {
+        if (student) map[student.id] = student;
+        return map;
+      }, {});
+      
+      return records.map(record => {
+        const studentData = studentDataMap[record.studentId] || {};
+        return {
+          ...record,
+          profileImage: studentData.profileImage || null
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+      return records;
+    }
+  };
 
   return (
     <div className="attendance-history">

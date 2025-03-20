@@ -218,106 +218,141 @@ function MedicalRecordForm() {
       </Row>
 
       {student && (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{ 
-            patientGender: 'male',
-            visitDate: null
-          }}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="patientName"
-                label="Patient Name"
-                rules={[{ required: true, message: 'Please enter patient name' }]}
-              >
-                <Input placeholder="Full name" disabled />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="patientId"
-                label="Patient ID"
-                rules={[{ required: true, message: 'Please enter patient ID' }]}
-              >
-                <Input placeholder="Patient ID" disabled />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="patientGender"
-                label="Gender"
-                rules={[{ required: true }]}
-              >
-                <Select disabled>
-                  <Select.Option value="male">Male</Select.Option>
-                  <Select.Option value="female">Female</Select.Option>
-                  <Select.Option value="other">Other</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="visitDate"
-                label="Visit Date"
-                rules={[{ required: true, message: 'Please select visit date' }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="doctorName"
-                label="Doctor Name"
-                rules={[{ required: true, message: 'Please enter doctor name' }]}
-              >
-                <Input placeholder="Doctor Name" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="department"
-                label="Department"
-              >
-                <Input placeholder="Department" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="diagnosis"
-            label="Diagnosis"
-            rules={[{ required: true, message: 'Please enter diagnosis' }]}
+        <div className="student-info-section">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ 
+              width: 80, 
+              height: 80, 
+              borderRadius: '50%',
+              overflow: 'hidden',
+              background: '#f0f2f5',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              {student.profileImage?.data ? (
+                <img 
+                  src={student.profileImage.data}
+                  alt={student.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 40px; color: #1890ff;"></span>';
+                  }}
+                />
+              ) : (
+                <UserOutlined style={{ fontSize: 40, color: '#1890ff' }} />
+              )}
+            </div>
+            <div>
+              <h2>{student.name}</h2>
+              <p>ID: {student.schoolId}</p>
+              {/* Other student info */}
+            </div>
+          </div>
+          
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            initialValues={{ 
+              patientGender: 'male',
+              visitDate: null
+            }}
           >
-            <Input placeholder="Diagnosis" />
-          </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="patientName"
+                  label="Patient Name"
+                  rules={[{ required: true, message: 'Please enter patient name' }]}
+                >
+                  <Input placeholder="Full name" disabled />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name="patientId"
+                  label="Patient ID"
+                  rules={[{ required: true, message: 'Please enter patient ID' }]}
+                >
+                  <Input placeholder="Patient ID" disabled />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name="patientGender"
+                  label="Gender"
+                  rules={[{ required: true }]}
+                >
+                  <Select disabled>
+                    <Select.Option value="male">Male</Select.Option>
+                    <Select.Option value="female">Female</Select.Option>
+                    <Select.Option value="other">Other</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Form.Item
-            name="treatment"
-            label="Treatment/Prescription"
-          >
-            <Input.TextArea rows={4} placeholder="Enter treatment details or prescription" />
-          </Form.Item>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item
+                  name="visitDate"
+                  label="Visit Date"
+                  rules={[{ required: true, message: 'Please select visit date' }]}
+                >
+                  <DatePicker style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="doctorName"
+                  label="Doctor Name"
+                  rules={[{ required: true, message: 'Please enter doctor name' }]}
+                >
+                  <Input placeholder="Doctor Name" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  name="department"
+                  label="Department"
+                >
+                  <Input placeholder="Department" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Form.Item
-            name="notes"
-            label="Additional Notes"
-          >
-            <Input.TextArea rows={4} placeholder="Additional notes" />
-          </Form.Item>
+            <Form.Item
+              name="diagnosis"
+              label="Diagnosis"
+              rules={[{ required: true, message: 'Please enter diagnosis' }]}
+            >
+              <Input placeholder="Diagnosis" />
+            </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              Submit Record
-            </Button>
-          </Form.Item>
-        </Form>
+            <Form.Item
+              name="treatment"
+              label="Treatment/Prescription"
+            >
+              <Input.TextArea rows={4} placeholder="Enter treatment details or prescription" />
+            </Form.Item>
+
+            <Form.Item
+              name="notes"
+              label="Additional Notes"
+            >
+              <Input.TextArea rows={4} placeholder="Additional notes" />
+            </Form.Item>
+
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                Submit Record
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
       )}
     </div>
   );

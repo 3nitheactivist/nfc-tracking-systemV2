@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Row, Col, Card, Form, Input, Button, Select, Table, Space, 
-  Popconfirm, message, Modal, Tabs, Tag, Typography, Empty 
+  Popconfirm, message, Modal, Tabs, Tag, Typography, Empty, List 
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, UserAddOutlined, 
-  UserDeleteOutlined, SearchOutlined, ScanOutlined 
+  UserDeleteOutlined, SearchOutlined, ScanOutlined, UserOutlined 
 } from '@ant-design/icons';
 import { hostelService } from '../../utils/firebase/hostelService';
 import { studentService } from '../../utils/firebase/studentService';
@@ -640,6 +640,37 @@ function HostelAssignment() {
                       <Tag color="red">Not Assigned</Tag>
                     )
                   )
+                },
+                {
+                  title: 'Profile',
+                  key: 'profileImage',
+                  render: (_, record) => (
+                    <div style={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      background: '#f0f2f5',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                      {record.profileImage?.data ? (
+                        <img 
+                          src={record.profileImage.data}
+                          alt={record.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+                          }}
+                        />
+                      ) : (
+                        <UserOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+                      )}
+                    </div>
+                  )
                 }
               ]}
             />
@@ -788,20 +819,18 @@ function HostelAssignment() {
             <Select
               showSearch
               placeholder="Select a student"
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              optionFilterProp="label"
+              filterOption={(input, option) => 
+                option?.label?.toLowerCase().includes(input.toLowerCase())
               }
-            >
-              {students
+              options={students
                 .filter(s => !s.hostelAssignment) // Only show unassigned students
-                .map(student => (
-                  <Option key={student.id} value={student.id}>
-                    {student.name} {student.studentId ? `(${student.studentId})` : ''}
-                  </Option>
-                ))
+                .map(student => ({
+                  label: `${student.name || ''} ${student.studentId ? `(${student.studentId})` : ''}`,
+                  value: student.id
+                }))
               }
-            </Select>
+            />
           </Form.Item>
           
           <Form.Item>

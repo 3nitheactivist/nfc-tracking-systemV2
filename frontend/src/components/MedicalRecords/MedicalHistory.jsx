@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Space, Button, Input, Modal, message, Tag, Tooltip, Row, Col } from 'antd';
-import { SearchOutlined, DeleteOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons';
-import { deleteDoc, doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { SearchOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, UserOutlined } from '@ant-design/icons';
+import { deleteDoc, doc, collection, query, where, getDocs, orderBy, getFirestore } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { medicalService } from '../../utils/firebase/medicalService';
@@ -90,12 +90,47 @@ function MedicalHistory() {
         });
       });
       
-      setRecords(fetchedRecords);
+      const enrichedRecords = await enrichWithStudentData(fetchedRecords);
+      setRecords(enrichedRecords);
     } catch (error) {
       console.error('Error fetching medical records:', error);
       message.error('Failed to fetch medical records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const enrichWithStudentData = async (records) => {
+    if (!records.length) return records;
+    
+    const studentIds = records.map(record => record.patientId).filter(Boolean);
+    if (!studentIds.length) return records;
+    
+    try {
+      const db = getFirestore();
+      const studentsRef = collection(db, "students");
+      const uniqueIds = [...new Set(studentIds)];
+      
+      const studentSnapshots = await Promise.all(
+        uniqueIds.map(async (studentId) => {
+          const studentQuery = query(studentsRef, where("__name__", "==", studentId));
+          const snapshot = await getDocs(studentQuery);
+          return snapshot.empty ? null : { id: studentId, ...snapshot.docs[0].data() };
+        })
+      );
+      
+      const studentDataMap = studentSnapshots.reduce((map, student) => {
+        if (student) map[student.id] = student;
+        return map;
+      }, {});
+      
+      return records.map(record => ({
+        ...record,
+        profileImage: studentDataMap[record.patientId]?.profileImage || null
+      }));
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+      return records;
     }
   };
 
@@ -206,6 +241,38 @@ function MedicalHistory() {
   });
 
   const columns = [
+    {
+      title: "Photo",
+      key: "photo",
+      width: 60,
+      render: (_, record) => (
+        <div style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: '50%',
+          overflow: 'hidden',
+          background: '#f0f2f5',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {record.profileImage?.data ? (
+            <img 
+              src={record.profileImage.data}
+              alt={record.patientName || record.patientId}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+              }}
+            />
+          ) : (
+            <UserOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+          )}
+        </div>
+      )
+    },
     {
       title: 'Patient Name',
       dataIndex: 'patientName',

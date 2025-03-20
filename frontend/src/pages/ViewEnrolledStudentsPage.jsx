@@ -16,11 +16,13 @@ import {
   EditOutlined, 
   DeleteOutlined, 
   EyeOutlined,
-  UserOutlined
+  UserOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { studentService } from '../utils/firebase/studentService';
 import dayjs from 'dayjs';
+import { appwriteService } from '../utils/appwrite/appwriteService';
 
 const ViewEnrolledStudentsPage = () => {
   const [students, setStudents] = useState([]);
@@ -39,6 +41,16 @@ const ViewEnrolledStudentsPage = () => {
   useEffect(() => {
     fetchStudents();
   }, []);
+
+  useEffect(() => {
+    if (selectedStudent) {
+      console.log('Selected student for drawer:', selectedStudent);
+      console.log('Profile image data available:', 
+        selectedStudent.profileImage ? 
+        `Yes, type: ${typeof selectedStudent.profileImage.data}, length: ${selectedStudent.profileImage.data?.length}` : 
+        'No');
+    }
+  }, [selectedStudent]);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -71,6 +83,8 @@ const ViewEnrolledStudentsPage = () => {
   };
 
   const viewStudentDetails = (student) => {
+    console.log('Viewing student details:', student);
+    console.log('Student has profile image:', student.profileImage ? 'Yes' : 'No');
     setSelectedStudent(student);
     setDrawerVisible(true);
   };
@@ -100,7 +114,53 @@ const ViewEnrolledStudentsPage = () => {
     );
   };
 
+  const refreshSelectedStudent = async () => {
+    if (!selectedStudent?.id) return;
+    
+    try {
+      console.log('Refreshing student data for ID:', selectedStudent.id);
+      const refreshedStudent = await studentService.getStudentById(selectedStudent.id);
+      if (refreshedStudent) {
+        console.log('Refreshed student data:', refreshedStudent);
+        setSelectedStudent(refreshedStudent);
+      }
+    } catch (error) {
+      console.error('Error refreshing student:', error);
+    }
+  };
+
   const columns = [
+    {
+      title: 'Photo',
+      key: 'photo',
+      render: (_, record) => (
+        <div style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: '50%',
+          overflow: 'hidden',
+          background: '#f0f2f5',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {record.profileImage?.data ? (
+            <img 
+              src={record.profileImage.data}
+              alt={record.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+              }}
+            />
+          ) : (
+            <UserOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+          )}
+        </div>
+      ),
+    },
     {
       title: 'Name',
       dataIndex: 'name',
@@ -232,6 +292,14 @@ const ViewEnrolledStudentsPage = () => {
           onClose={() => setDrawerVisible(false)}
           open={drawerVisible}
           width={500}
+          extra={
+            <Button 
+              icon={<ReloadOutlined />}
+              onClick={refreshSelectedStudent}
+            >
+              Refresh
+            </Button>
+          }
         >
           {selectedStudent && (
             <motion.div
@@ -256,10 +324,27 @@ const ViewEnrolledStudentsPage = () => {
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginBottom: 16
+                    marginBottom: 16,
+                    overflow: 'hidden'
                   }}
                 >
-                  <UserOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                  {console.log('Profile image data in drawer:', selectedStudent?.profileImage)}
+                  
+                  {selectedStudent?.profileImage?.data ? (
+                    <img 
+                      src={selectedStudent.profileImage.data}
+                      alt={selectedStudent.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        console.error('Error loading image in drawer');
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 48px; color: #1890ff;"></span>';
+                      }}
+                    />
+                  ) : (
+                    <UserOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                  )}
                 </div>
                 <h2>{selectedStudent.name}</h2>
                 <Tag color={selectedStudent.status === 'active' ? 'green' : 'red'}>

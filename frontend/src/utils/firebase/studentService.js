@@ -281,5 +281,26 @@ export const studentService = {
       console.error('Error deleting student with related data:', error);
       throw error;
     }
+  },
+
+  // Add this if it doesn't exist
+  getStudentById: async (studentId) => {
+    try {
+      const docRef = doc(db, 'students', studentId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...docSnap.data()
+        };
+      } else {
+        console.log('No such student!');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting student:', error);
+      throw error;
+    }
   }
 };

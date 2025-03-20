@@ -18,6 +18,9 @@ import CampusAccessPage from "./pages/CampusAccessPage";
 import HostelManagementPage from "./pages/HostelManagementPage";
 import StudentEnrollmentPage from "./pages/StudentEnrollmentPage";
 import StudentManagementPage from "./pages/StudentManagementPage";
+import ExamSchedulePage from "./pages/ExamSchedulePage";
+import ExamAttendance from "./components/ExamScheduleAccess/ExamAttendance/ExamAttendance";
+import ScheduleExam from "./components/ExamScheduleAccess/ScheduleExam";
 
 function App() {
   return (
@@ -31,6 +34,9 @@ function App() {
             <Route path="/forgotPassword" element={<ForgotPassword />} />
           {/* ====== */}
             <Route path="/attendance" element={<PrivateRoute><AppLayout><AttendanceTrackingPage /></AppLayout></PrivateRoute>} />
+            <Route path="/examSchedule" element={<PrivateRoute><AppLayout><ExamSchedulePage /></AppLayout></PrivateRoute>} />
+            <Route path="/examAttendance" element={<PrivateRoute><AppLayout><ExamAttendance /></AppLayout></PrivateRoute>} />
+            <Route path="/scheduleExam" element={<PrivateRoute><AppLayout><ScheduleExam /></AppLayout></PrivateRoute>} />
             <Route path="/library" element={<PrivateRoute><AppLayout><LibraryAccessPage /></AppLayout></PrivateRoute>} />
             <Route path="/medical" element={<PrivateRoute><AppLayout><MedicalRecordsPage /></AppLayout></PrivateRoute>} />
             <Route path="/campus" element={<PrivateRoute><AppLayout><CampusAccessPage /></AppLayout></PrivateRoute>} />

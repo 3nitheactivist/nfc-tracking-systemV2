@@ -13,6 +13,7 @@ import {
   ApartmentOutlined,
   ScheduleOutlined,
   HomeOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import PropTypes from "prop-types";
@@ -307,6 +308,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               icon: <ScheduleOutlined />,
               label: "Class Attendance",
               onClick: () => handleNavigation("/attendance"),
+            },
+            {
+              key: "exam schedule",
+              icon: <FileTextOutlined />,
+              label: "Exam Schedule",
+              onClick: () => handleNavigation("/examSchedule"),
             },
             {
               key: "logout",

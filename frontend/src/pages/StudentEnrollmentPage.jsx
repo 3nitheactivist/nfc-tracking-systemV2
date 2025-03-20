@@ -11,7 +11,8 @@ import {
   Divider,
   Result,
   Badge,
-  Spin
+  Spin,
+  Upload
 } from 'antd';
 import { motion } from 'framer-motion';
 import { 
@@ -19,10 +20,13 @@ import {
   IdcardOutlined, 
   ScanOutlined,
   CheckCircleOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import { studentService } from '../utils/firebase/studentService';
 import { useBluetooth } from '../components/BluetoothButton/BluetoothContext';
+import { fileToBase64 } from '../utils/imageUtills';
+import { appwriteService } from '../utils/appwrite/appwriteService';
 
 const { Title, Text } = Typography;
 
@@ -145,6 +149,87 @@ const StudentEnrollmentPage = () => {
     setStudentData(prev => ({ ...prev, [field]: value }));
   };
 
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  // First, add this direct ref for the file input
+  const fileInputRef = useRef(null);
+
+  // Replace the entire Upload component in the form with this:
+  <Form.Item label="Student Photo">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Preview area */}
+      <div 
+        style={{ 
+          width: 104, 
+          height: 104, 
+          border: '1px dashed #d9d9d9', 
+          borderRadius: '8px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: 8,
+          overflow: 'hidden',
+          background: '#fafafa'
+        }}
+      >
+        {imagePreview ? (
+          <img 
+            src={imagePreview} 
+            alt="avatar" 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+          />
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <PlusOutlined style={{ fontSize: 24, color: '#999' }} />
+            <div style={{ marginTop: 8, color: '#999' }}>Upload Photo</div>
+          </div>
+        )}
+      </div>
+      
+      {/* Hidden file input */}
+      <input 
+        type="file" 
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          console.log("File selected:", file);
+          
+          if (!file) return;
+          
+          // Check file size
+          if (file.size > 2 * 1024 * 1024) {
+            message.error('Image must be smaller than 2MB!');
+            return;
+          }
+          
+          // Save file to state
+          setImageFile(file);
+          console.log("Image file set in state:", file.name);
+          
+          // Create preview
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setImagePreview(event.target.result);
+            console.log("Preview generated successfully");
+          };
+          reader.readAsDataURL(file);
+        }}
+      />
+      
+      {/* Button to trigger file selection */}
+      <Button 
+        onClick={() => fileInputRef.current?.click()}
+        icon={uploadLoading ? <LoadingOutlined /> : <PlusOutlined />}
+      >
+        {uploadLoading ? 'Uploading...' : 'Select Photo'}
+      </Button>
+    </div>
+  </Form.Item>
+
   const onFinish = async () => {
     try {
       // Validate that all required fields are filled
@@ -155,14 +240,60 @@ const StudentEnrollmentPage = () => {
       }
 
       setEnrolling(true);
+      console.log('Image file available for upload:', imageFile ? `Yes (${imageFile.name})` : 'No', imageFile);
+      
+      let profileImageData = null;
+      
+      // Convert image to base64 if available - simple and direct approach
+      if (imageFile) {
+        try {
+          // Use the preview we already generated
+          if (imagePreview) {
+            profileImageData = { 
+              data: imagePreview,
+              uploaded: new Date()
+            };
+            console.log('Using existing image preview for enrollment');
+          } else {
+            console.log('No preview available, reading file again');
+            // Read file again if preview isn't available
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(imageFile);
+            });
+            
+            const base64Image = await base64Promise;
+            profileImageData = {
+              data: base64Image,
+              uploaded: new Date()
+            };
+          }
+          console.log('Image data prepared successfully');
+        } catch (imageError) {
+          console.error('Error processing image:', imageError);
+          message.warning('Could not process the image, but continuing with enrollment');
+        }
+      } else {
+        console.log('No image file selected');
+      }
 
-      // Add timestamp
+      // Add timestamp, image data and default values
       const dataToSubmit = {
         ...studentData,
-        createdAt: new Date()
+        createdAt: new Date(),
+        profileImage: profileImageData,
+        permissions: {
+          library: true,
+          medical: true,
+          campus: true,
+          hostel: true
+        },
+        status: 'active'
       };
 
-      console.log('Submitting student data:', dataToSubmit);
+      console.log('Submitting student data with image:', profileImageData ? 'Image included' : 'No image');
       
       const result = await studentService.enrollStudent(dataToSubmit);
       
@@ -238,6 +369,78 @@ const StudentEnrollmentPage = () => {
               value={studentData.schoolId}
               onChange={(e) => handleInputChange('schoolId', e.target.value)}
             />
+          </Form.Item>
+          <Form.Item label="Student Photo">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {/* Preview area */}
+              <div 
+                style={{ 
+                  width: 104, 
+                  height: 104, 
+                  border: '1px dashed #d9d9d9', 
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                  overflow: 'hidden',
+                  background: '#fafafa'
+                }}
+              >
+                {imagePreview ? (
+                  <img 
+                    src={imagePreview} 
+                    alt="avatar" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center' }}>
+                    <PlusOutlined style={{ fontSize: 24, color: '#999' }} />
+                    <div style={{ marginTop: 8, color: '#999' }}>Upload Photo</div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Hidden file input */}
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  console.log("File selected:", file);
+                  
+                  if (!file) return;
+                  
+                  // Check file size
+                  if (file.size > 2 * 1024 * 1024) {
+                    message.error('Image must be smaller than 2MB!');
+                    return;
+                  }
+                  
+                  // Save file to state
+                  setImageFile(file);
+                  console.log("Image file set in state:", file.name);
+                  
+                  // Create preview
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    setImagePreview(event.target.result);
+                    console.log("Preview generated successfully");
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              
+              {/* Button to trigger file selection */}
+              <Button 
+                onClick={() => fileInputRef.current?.click()}
+                icon={uploadLoading ? <LoadingOutlined /> : <PlusOutlined />}
+              >
+                {uploadLoading ? 'Uploading...' : 'Select Photo'}
+              </Button>
+            </div>
           </Form.Item>
         </motion.div>
       ),
@@ -380,6 +583,8 @@ const StudentEnrollmentPage = () => {
                   schoolId: '',
                   nfcTagId: ''
                 });
+                setImageFile(null);
+                setImagePreview('');
                 setCurrentStep(0);
                 setIsCompleted(false);
               }}

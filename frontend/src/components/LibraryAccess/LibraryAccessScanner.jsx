@@ -385,12 +385,40 @@ const LibraryAccessScanner = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} md={12}>
                   <Card title="Student Information" bordered={false}>
-                    <Descriptions layout="vertical" column={1}>
-                      <Descriptions.Item label="Name">{studentData.name}</Descriptions.Item>
-                      <Descriptions.Item label="ID">{studentData.nfcTagId}</Descriptions.Item>
-                      <Descriptions.Item label="Department">{studentData.department || 'Computer Science'}</Descriptions.Item>
-                      <Descriptions.Item label="Year">{studentData.year || '4th Year'}</Descriptions.Item>
-                    </Descriptions>
+                    <div className="student-info-section">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                        <div style={{ 
+                          width: 80, 
+                          height: 80, 
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          background: '#f0f2f5',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}>
+                          {studentData.profileImage?.data ? (
+                            <img 
+                              src={studentData.profileImage.data}
+                              alt={studentData.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 40px; color: #1890ff;"></span>';
+                              }}
+                            />
+                          ) : (
+                            <UserOutlined style={{ fontSize: 40, color: '#1890ff' }} />
+                          )}
+                        </div>
+                        <div>
+                          <h2>{studentData.name}</h2>
+                          <p>School ID: {studentData.schoolId}</p>
+                          {/* Other student information */}
+                        </div>
+                      </div>
+                    </div>
                   </Card>
                 </Col>
                 <Col xs={24} md={12}>

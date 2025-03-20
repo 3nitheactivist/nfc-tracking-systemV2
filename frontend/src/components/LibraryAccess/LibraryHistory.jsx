@@ -26,9 +26,10 @@ import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { libraryService } from '../../utils/firebase/libraryService';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { message } from 'antd';
+import { getFirestore } from 'firebase/firestore';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -55,8 +56,8 @@ function LibraryHistory() {
 
   useEffect(() => {
     const fetchLibraryAccessRecords = async () => {
-    setLoading(true);
-    try {
+      setLoading(true);
+      try {
         console.log("Fetching library access records");
         
         // Create the query - use the correct collection name
@@ -79,21 +80,22 @@ function LibraryHistory() {
           records.push(record);
         });
         
-        setData(records);
-      setTableParams({
-        ...tableParams,
-        pagination: {
-          ...tableParams.pagination,
-            total: records.length
-        }
-      });
-    } catch (error) {
+        const enrichedRecords = await enrichWithStudentData(records);
+        setData(enrichedRecords);
+        setTableParams({
+          ...tableParams,
+          pagination: {
+            ...tableParams.pagination,
+            total: enrichedRecords.length
+          }
+        });
+      } catch (error) {
         console.error('Error fetching library access records:', error);
         message.error('Failed to fetch library access records');
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
     
     fetchLibraryAccessRecords();
   }, []);
@@ -123,7 +125,7 @@ function LibraryHistory() {
 
   const handleExport = () => {
     // Implement CSV export functionality
-    const csvContent = convertToCSV(filteredData);
+    const csvContent = convertToCSV(data);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -189,14 +191,79 @@ function LibraryHistory() {
     return searchMatch && dateMatch && typeMatch;
   });
 
+  const enrichWithStudentData = async (records) => {
+    if (!records.length) return records;
+    
+    const studentIds = records.map(record => record.studentId).filter(Boolean);
+    if (!studentIds.length) return records;
+    
+    try {
+      const db = getFirestore();
+      const studentsRef = collection(db, "students");
+      const uniqueIds = [...new Set(studentIds)];
+      
+      const studentSnapshots = await Promise.all(
+        uniqueIds.map(async (studentId) => {
+          const studentQuery = query(studentsRef, where("__name__", "==", studentId));
+          const snapshot = await getDocs(studentQuery);
+          return snapshot.empty ? null : { id: studentId, ...snapshot.docs[0].data() };
+        })
+      );
+      
+      const studentDataMap = studentSnapshots.reduce((map, student) => {
+        if (student) map[student.id] = student;
+        return map;
+      }, {});
+      
+      return records.map(record => ({
+        ...record,
+        profileImage: studentDataMap[record.studentId]?.profileImage || null
+      }));
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+      return records;
+    }
+  };
+
   const columns = [
+    {
+      title: "Photo",
+      key: "photo",
+      width: 60,
+      render: (_, record) => (
+        <div style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: '50%',
+          overflow: 'hidden',
+          background: '#f0f2f5',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {record.profileImage?.data ? (
+            <img 
+              src={record.profileImage.data}
+              alt={record.studentName || record.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+              }}
+            />
+          ) : (
+            <UserOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+          )}
+        </div>
+      )
+    },
     {
       title: 'Student',
       dataIndex: 'studentName',
       key: 'studentName',
       render: (text, record) => (
         <Space>
-          <Avatar icon={<UserOutlined />} />
           <span>{text}</span>
           <Text type="secondary" style={{ fontSize: '12px' }}>({record.studentId})</Text>
         </Space>

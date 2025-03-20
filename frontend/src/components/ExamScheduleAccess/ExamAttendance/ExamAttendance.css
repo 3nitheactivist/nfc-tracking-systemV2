@@ -1,0 +1,35 @@
+.attendance-list {
+    padding: 20px;
+    background-color: #ffffff;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+}
+
+th {
+    background-color: #f5f5f5;
+}
+
+
+@media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .attendance-view {
+      padding: 20px;
+    }
+  
+    .MuiTableCell-root {
+      border: 1px solid #ddd !important;
+      padding: 8px !important;
+    }
+  }

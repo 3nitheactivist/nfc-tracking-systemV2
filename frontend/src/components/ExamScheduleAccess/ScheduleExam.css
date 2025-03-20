@@ -1,0 +1,20 @@
+/* Add these styles to your CSS file */
+.custom-calendar .ant-picker-calendar-date {
+    background: white !important;
+  }
+  
+  .custom-calendar .ant-picker-calendar-date-today {
+    border-color: #1890ff;
+  }
+  
+  .custom-calendar .ant-picker-calendar-date-value {
+    color: rgba(0, 0, 0, 0.85);
+  }
+  
+  .custom-calendar .ant-picker-calendar-date:hover {
+    background: #f5f5f5 !important;
+  }
+  
+  .custom-calendar .ant-picker-calendar-date-selected {
+    background: #e6f7ff !important;
+  }

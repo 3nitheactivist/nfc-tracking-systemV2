@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Alert, Space, Result, Typography, Row, Col, Spin, Badge, Select, List, message, Empty } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { useHostelAccess } from '../../hooks/useHostelAccess';
 import { hostelService } from '../../utils/firebase/hostelService';
@@ -331,6 +331,38 @@ function HostelAccessScanner() {
             {student ? (
               <div>
                 <div className="student-details">
+                  <div style={{ 
+                    marginBottom: 16, 
+                    display: 'flex', 
+                    justifyContent: 'center' 
+                  }}>
+                    <div style={{ 
+                      width: 100, 
+                      height: 100, 
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      background: '#f0f2f5',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      border: '1px solid #d9d9d9'
+                    }}>
+                      {student.profileImage?.data ? (
+                        <img 
+                          src={student.profileImage.data}
+                          alt={student.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 40px; color: #1890ff;"></span>';
+                          }}
+                        />
+                      ) : (
+                        <UserOutlined style={{ fontSize: 40, color: '#1890ff' }} />
+                      )}
+                    </div>
+                  </div>
                   <Title level={4}>{student.name}</Title>
                   <Text>Student ID: {student.schoolId || student.studentId || 'N/A'}</Text>
                   <div style={{ margin: '16px 0' }}>

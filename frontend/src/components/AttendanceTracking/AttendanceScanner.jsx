@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Input, Button, Select, Alert, Space, Result, Typography, Spin, message, Badge, Row, Col } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
@@ -324,19 +324,36 @@ function AttendanceScanner() {
             className="student-info-card"
           >
             {student ? (
-              <div>
-                <div className="student-details">
-                  <Title level={4}>{student.name}</Title>
-                  <Text>Student ID: {student.schoolId || student.studentId || 'N/A'}</Text>
-                  <div style={{ margin: '16px 0' }}>
-                    <Badge 
-                      status={scanStatus === 'success' ? 'success' : scanStatus === 'warning' ? 'warning' : 'error'} 
-                      text={
-                        scanStatus === 'success' ? 'Attendance Recorded' : 
-                        scanStatus === 'warning' ? 'Already Recorded Today' : 
-                        'Failed to Record'
-                      } 
-                    />
+              <div className="student-info-container">
+                <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    background: '#f0f2f5',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}>
+                    {student.profileImage?.data ? (
+                      <img 
+                        src={student.profileImage.data}
+                        alt={student.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 40px; color: #1890ff;"></span>';
+                        }}
+                      />
+                    ) : (
+                      <UserOutlined style={{ fontSize: 40, color: '#1890ff' }} />
+                    )}
+                  </div>
+                  <div>
+                    <h3>{student.name}</h3>
+                    <p>ID: {student.schoolId || student.studentId || 'N/A'}</p>
                   </div>
                 </div>
                 

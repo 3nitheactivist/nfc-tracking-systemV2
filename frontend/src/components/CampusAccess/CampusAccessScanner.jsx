@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Input, Alert, Space, Result, Typography, Row, Col, Spin, Badge, Pagination, Empty, Tag } from 'antd';
-import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ScanOutlined, CheckCircleOutlined, CloseCircleOutlined, LogoutOutlined, LoginOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { useCampusAccess } from '../../hooks/useCampusAccess';
 
@@ -189,6 +189,38 @@ function CampusAccessScanner() {
                 </Space>
               </div>
             ) : (
+              <div className="student-result">
+                <div className="student-header" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    background: '#f0f2f5',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}>
+                    {student.profileImage?.data ? (
+                      <img 
+                        src={student.profileImage.data}
+                        alt={student.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 30px; color: #1890ff;"></span>';
+                        }}
+                      />
+                    ) : (
+                      <UserOutlined style={{ fontSize: 30, color: '#1890ff' }} />
+                    )}
+                  </div>
+                  <div>
+                    <h3>{student.name}</h3>
+                    <p>ID: {student.id}</p>
+                  </div>
+                </div>
               <Result
                 icon={accessStatus === 'granted' ? 
                   currentAction === 'entry' ? 
@@ -204,11 +236,12 @@ function CampusAccessScanner() {
                 }
                 subTitle={`Student: ${student.name} (ID: ${student.id})`}
                 extra={[
-                  <Button key="new" onClick={handleHardRefresh}>
+                    <Button key="new" onClick={handleHardRefresh}>
                     New Scan
                   </Button>
                 ]}
               />
+              </div>
             )}
           </Card>
         </Col>
