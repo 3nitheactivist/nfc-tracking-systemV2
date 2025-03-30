@@ -10,6 +10,7 @@ import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'fire
 import { db } from '../../../utils/firebase/firebase';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import { API_CONFIG } from '../../../utils/apiConfig';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -58,10 +59,10 @@ function AppointmentForm() {
 
   const sendAppointmentEmail = async (appointmentData) => {
     try {
-      const response = await axios.post('/api/send-email', {
-        to: appointmentData.studentEmail,
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/send-email`, {
+        recipient: appointmentData.studentEmail,
         subject: 'Medical Appointment Confirmation',
-        html: `
+        message: `
           <h2>Medical Appointment Confirmation</h2>
           <p>Dear ${appointmentData.studentName},</p>
           <p>Your medical appointment has been scheduled for:</p>

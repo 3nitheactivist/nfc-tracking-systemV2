@@ -13,7 +13,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
-    // 'https://hospital-management-system-one-phi.vercel.app'
+    // Add your production URL if needed
   ],
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
