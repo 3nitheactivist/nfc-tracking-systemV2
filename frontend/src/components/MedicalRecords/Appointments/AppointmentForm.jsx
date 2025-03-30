@@ -10,7 +10,7 @@ import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'fire
 import { db } from '../../../utils/firebase/firebase';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import { API_CONFIG } from '../../../utils/apiConfig';
+import { API_CONFIG } from '../../../config/apiConfig';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -74,8 +74,10 @@ function AppointmentForm() {
         `
       });
 
-      if (response.status === 200) {
+      if (response.data.success) {
         message.success('Appointment confirmation email sent');
+      } else {
+        throw new Error('Email sending failed');
       }
     } catch (error) {
       console.error('Error sending email:', error);
