@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, List, Typography, Spin, Empty } from 'antd';
+import { Row, Col, Card, Statistic, List, Typography, Spin, Empty, Tabs } from 'antd';
 import { UserOutlined, ClockCircleOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { medicalService } from '../../utils/firebase/medicalService';
+import AppointmentForm from './Appointments/AppointmentForm';
+import AppointmentList from './Appointments/AppointmentList';
 
 const { Text } = Typography;
+const { TabPane } = Tabs;
 
 function MedicalDashboard() {
   const [loading, setLoading] = useState(true);
@@ -81,94 +84,109 @@ function MedicalDashboard() {
   };
 
   return (
-    <div className="dashboard-container">
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Row gutter={[16, 16]}>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Patients"
-                  value={stats.totalPatients}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Records (Last 30 Days)"
-                  value={stats.recentRecords}
-                  prefix={<ClockCircleOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Records"
-                  value={Object.values(stats.departmentCounts).reduce((a, b) => a + b, 0)}
-                  prefix={<MedicineBoxOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
+    <Tabs defaultActiveKey="1">
+      <TabPane tab="Medical Records" key="1">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <>
+            <Row gutter={[16, 16]}>
+              <Col span={8}>
+                <Card>
+                  <Statistic
+                    title="Total Patients"
+                    value={stats.totalPatients}
+                    prefix={<UserOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={8}>
+                <Card>
+                  <Statistic
+                    title="Records (Last 30 Days)"
+                    value={stats.recentRecords}
+                    prefix={<ClockCircleOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={8}>
+                <Card>
+                  <Statistic
+                    title="Total Records"
+                    value={Object.values(stats.departmentCounts).reduce((a, b) => a + b, 0)}
+                    prefix={<MedicineBoxOutlined />}
+                  />
+                </Card>
+              </Col>
+            </Row>
 
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col span={12}>
-              <Card title="Recent Medical Records">
-                {recentRecords.length > 0 ? (
-                  <List
-                    dataSource={recentRecords}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={`${item.patientName} (ID: ${item.patientId})`}
-                          description={
-                            <>
-                              <Text type="secondary">
-                                {item.visitDate?.toLocaleDateString()} | Dr. {item.doctorName}
-                              </Text>
-                              <br />
-                              <Text strong>{item.diagnosis}</Text>
-                            </>
-                          }
-                        />
-                      </List.Item>
-                    )}
-                  />
-                ) : (
-                  <Empty description="No recent records" />
-                )}
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card title="Records by Department">
-                {Object.keys(stats.departmentCounts).length > 0 ? (
-                  <List
-                    dataSource={Object.entries(stats.departmentCounts).sort((a, b) => b[1] - a[1])}
-                    renderItem={([department, count]) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={department}
-                          description={`${count} record${count !== 1 ? 's' : ''}`}
-                        />
-                      </List.Item>
-                    )}
-                  />
-                ) : (
-                  <Empty description="No department data" />
-                )}
-              </Card>
-            </Col>
-          </Row>
-        </>
-      )}
-    </div>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+              <Col span={12}>
+                <Card title="Recent Medical Records">
+                  {recentRecords.length > 0 ? (
+                    <List
+                      dataSource={recentRecords}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={`${item.patientName} (ID: ${item.patientId})`}
+                            description={
+                              <>
+                                <Text type="secondary">
+                                  {item.visitDate?.toLocaleDateString()} | Dr. {item.doctorName}
+                                </Text>
+                                <br />
+                                <Text strong>{item.diagnosis}</Text>
+                              </>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  ) : (
+                    <Empty description="No recent records" />
+                  )}
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="Records by Department">
+                  {Object.keys(stats.departmentCounts).length > 0 ? (
+                    <List
+                      dataSource={Object.entries(stats.departmentCounts).sort((a, b) => b[1] - a[1])}
+                      renderItem={([department, count]) => (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={department}
+                            description={`${count} record${count !== 1 ? 's' : ''}`}
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  ) : (
+                    <Empty description="No department data" />
+                  )}
+                </Card>
+              </Col>
+            </Row>
+          </>
+        )}
+      </TabPane>
+      
+      <TabPane tab="Appointments" key="2">
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ flex: '0 0 400px' }}>
+            <AppointmentForm />
+          </div>
+          <div style={{ flex: 1 }}>
+            <AppointmentList />
+          </div>
+        </div>
+      </TabPane>
+      
+      {/* Other tabs */}
+    </Tabs>
   );
 }
 
