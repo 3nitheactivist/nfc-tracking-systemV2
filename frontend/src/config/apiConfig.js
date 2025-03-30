@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Define the email service URL
-const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL || 'https://hospital-management-email-service.onrender.com';
+const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL || 'https://nfc-tracking-email-service.onrender.com';
 
 // Create an axios instance with default config
 const axiosInstance = axios.create({
