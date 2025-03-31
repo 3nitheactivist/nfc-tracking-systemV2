@@ -21,13 +21,10 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// Add preflight handling
-app.options('/send-email', cors());
-
 // Add headers middleware
 app.use((req, res, next) => {
   // res.header('Access-Control-Allow-Origin', 'https://nfc-tracking-system-one-phi.vercel.app');
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  // res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Credentials', true);
