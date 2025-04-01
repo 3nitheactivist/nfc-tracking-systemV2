@@ -21,6 +21,7 @@ import StudentManagementPage from "./pages/StudentManagementPage";
 import ExamSchedulePage from "./pages/ExamSchedulePage";
 import ExamAttendance from "./components/ExamScheduleAccess/ExamAttendance/ExamAttendance";
 import ScheduleExam from "./components/ExamScheduleAccess/ScheduleExam";
+import ViewExams from './pages/ViewExams';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
             <Route path="/campus" element={<PrivateRoute><AppLayout><CampusAccessPage /></AppLayout></PrivateRoute>} />
             <Route path="/hostel" element={<PrivateRoute><AppLayout><HostelManagementPage /></AppLayout></PrivateRoute>} />
             <Route path="/students" element={<PrivateRoute><AppLayout><StudentManagementPage /></AppLayout></PrivateRoute>} />
+            <Route path="/viewExams" element={<PrivateRoute><AppLayout><ViewExams /></AppLayout></PrivateRoute>} />
           </Routes>
         </Router>
       </BluetoothProvider>

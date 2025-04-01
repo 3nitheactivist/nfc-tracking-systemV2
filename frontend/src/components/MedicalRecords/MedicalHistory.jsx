@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Space, Button, Input, Modal, message, Tag, Tooltip, Row, Col } from 'antd';
-import { SearchOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, UserOutlined } from '@ant-design/icons';
+import { SearchOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, UserOutlined, ExportOutlined } from '@ant-design/icons';
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, getFirestore } from 'firebase/firestore';
 import { db } from '../../utils/firebase/firebase';
 import { useNFCScanner } from '../../hooks/useNFCScanner';
 import { medicalService } from '../../utils/firebase/medicalService';
 import { studentService } from '../../utils/firebase/studentService';
+import * as XLSX from 'xlsx';
 
 function MedicalHistory() {
   const [records, setRecords] = useState([]);
@@ -230,6 +231,14 @@ function MedicalHistory() {
     startScan();
   };
 
+  // Export to Excel function
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(records);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Medical Records');
+    XLSX.writeFile(workbook, 'Medical_Records.xlsx');
+  };
+
   const filteredRecords = records.filter(record => {
     const searchLower = searchText.toLowerCase();
     return (
@@ -351,34 +360,15 @@ function MedicalHistory() {
               style={{ width: 400 }}
             />
           </Col>
-          {/* <Col>
+          <Col>
             <Button 
-              icon={<ScanOutlined />}
-              onClick={scanning ? stopScan : handleStartScan}
-              loading={scanning || processing}
+              icon={<ExportOutlined />}
+              onClick={exportToExcel}
+              type="primary"
             >
-              {scanning ? 'Cancel Scan' : 'Scan Student Card'}
+              Export to Excel
             </Button>
           </Col>
-          <Col>
-            <Input.Group compact>
-              <Input 
-                style={{ width: 200 }} 
-                placeholder="Enter NFC ID manually"
-                value={manualNfcId}
-                onChange={(e) => setManualNfcId(e.target.value)}
-                onPressEnter={handleManualNfcSubmit}
-                disabled={processing}
-              />
-              <Button 
-                type="primary" 
-                onClick={handleManualNfcSubmit}
-                loading={processing}
-              >
-                Go
-              </Button>
-            </Input.Group>
-          </Col> */}
           {studentFilter && (
             <Col>
               <Tag color="blue" closable onClose={clearStudentFilter}>

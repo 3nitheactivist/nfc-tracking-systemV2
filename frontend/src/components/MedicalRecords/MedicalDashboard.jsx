@@ -6,6 +6,10 @@ import { db } from '../../utils/firebase/firebase';
 import { medicalService } from '../../utils/firebase/medicalService';
 import AppointmentForm from './Appointments/AppointmentForm';
 import AppointmentList from './Appointments/AppointmentList';
+import AppointmentScanner from './Appointments/AppointmentScanner';
+import PrescriptionForm from './Prescriptions/PrescriptionForm';
+import PrescriptionList from './Prescriptions/PrescriptionList';
+import PrescriptionScanner from './Prescriptions/PrescriptionScanner';
 
 const { Text } = Typography;
 const { TabPane } = Tabs;
@@ -184,8 +188,25 @@ function MedicalDashboard() {
           </div>
         </div>
       </TabPane>
-      
-      {/* Other tabs */}
+
+      <TabPane tab="Prescriptions" key="3">
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ flex: '0 0 400px' }}>
+            <PrescriptionForm />
+          </div>
+          <div style={{ flex: 1 }}>
+            <PrescriptionList />
+          </div>
+        </div>
+      </TabPane>
+
+      <TabPane tab="Check-in Scanner" key="4">
+        <AppointmentScanner />
+      </TabPane>
+
+      <TabPane tab="Prescription Scanner" key="5">
+        <PrescriptionScanner />
+      </TabPane>
     </Tabs>
   );
 }
