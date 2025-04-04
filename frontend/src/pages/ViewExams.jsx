@@ -413,7 +413,7 @@ const ViewExams = () => {
                         description={
                           <Space direction="vertical" size="small">
                             <Text type="secondary">ID: {student.schoolId}</Text>
-                            <Text type="secondary">Contact: {student.contact || 'N/A'}</Text>
+                            <Text type="secondary">Contact: {student.phone || 'N/A'}</Text>
                           </Space>
                         }
                       />
