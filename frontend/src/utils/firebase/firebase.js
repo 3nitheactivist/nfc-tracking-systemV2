@@ -26,4 +26,4 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting persistence:", error);
 });
 
-export { db, auth };
+export { db, auth, app };

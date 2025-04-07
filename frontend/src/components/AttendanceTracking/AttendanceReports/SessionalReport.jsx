@@ -8,6 +8,8 @@ import AttendancePieChart from '../AttendanceCharts/AttendancePieChart';
 import AttendanceTrendChart from '../AttendanceCharts/AttendanceTrendChart';
 import CSVExport from '../ExportTools/CSVExport';
 import ExcelExport from '../ExportTools/ExcelExport';
+import SimpleAttendanceBarChart from '../AttendanceCharts/SimpleAttendanceBarChart';
+import SimpleAttendanceTrendChart from '../AttendanceCharts/SimpleAttendanceTrendChart';
 
 const { Option } = Select;
 
@@ -288,10 +290,10 @@ function SessionalReport() {
           
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} md={12}>
-              <AttendancePieChart data={attendanceData} title="Overall Attendance" />
+              <SimpleAttendanceBarChart data={attendanceData} title="Overall Attendance" />
             </Col>
             <Col xs={24} md={12}>
-              <AttendanceTrendChart data={attendanceData} title="Attendance Trend" />
+              <SimpleAttendanceTrendChart data={attendanceData} title="Attendance Trend" />
             </Col>
           </Row>
           

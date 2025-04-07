@@ -3,7 +3,7 @@ import { Card, Row, Col, DatePicker, Select, Button, Table, Spin, Empty, message
 import { CalendarOutlined, TeamOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../utils/firebase/firebase';
-import AttendancePieChart from '../AttendanceCharts/AttendancePieChart';
+import SimpleAttendancePieChart from '../AttendanceCharts/SimpleAttendancePieChart';
 import CSVExport from '../ExportTools/CSVExport';
 import ExcelExport from '../ExportTools/ExcelExport';
 
@@ -227,7 +227,7 @@ function DailyReport() {
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} md={12}>
               <Card title="Attendance Summary">
-                <AttendancePieChart data={attendanceData} title="" />
+                <SimpleAttendancePieChart data={attendanceData} title="" />
               </Card>
             </Col>
             <Col xs={24} md={12}>

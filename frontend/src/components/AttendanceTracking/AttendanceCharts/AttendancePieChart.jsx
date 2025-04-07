@@ -1,10 +1,8 @@
 import React from 'react';
 import { Card } from 'antd';
 import { Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-
-// Register ChartJS components
-ChartJS.register(ArcElement, Tooltip, Legend);
+// We no longer need to import Chart or register components here
+// since it's handled globally in chartjs-register.js
 
 function AttendancePieChart({ data, title = 'Attendance Overview' }) {
   // Process data for chart

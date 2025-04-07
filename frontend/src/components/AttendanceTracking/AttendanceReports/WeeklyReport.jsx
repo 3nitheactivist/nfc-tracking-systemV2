@@ -3,10 +3,11 @@ import { Card, Row, Col, DatePicker, Select, Button, Table, Spin, Empty, message
 import { CalendarOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../utils/firebase/firebase';
-import AttendanceBarChart from '../AttendanceCharts/AttendanceBarChart';
-import AttendanceTrendChart from '../AttendanceCharts/AttendanceTrendChart';
+import SimpleAttendanceBarChart from '../AttendanceCharts/SimpleAttendanceBarChart';
+import SimpleAttendanceTrendChart from '../AttendanceCharts/SimpleAttendanceTrendChart';
 import CSVExport from '../ExportTools/CSVExport';
 import ExcelExport from '../ExportTools/ExcelExport';
+import SimpleAttendancePieChart from '../AttendanceCharts/SimpleAttendancePieChart';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -269,10 +270,10 @@ function WeeklyReport() {
           
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} md={12}>
-              <AttendanceBarChart data={attendanceData} title="Attendance by Day" />
+              <SimpleAttendancePieChart data={attendanceData} title="Overall Attendance" />
             </Col>
             <Col xs={24} md={12}>
-              <AttendanceTrendChart data={attendanceData} title="Attendance Trend" />
+              <SimpleAttendanceTrendChart data={attendanceData} title="Attendance Trend" />
             </Col>
           </Row>
           

@@ -1,10 +1,8 @@
 import React from 'react';
 import { Card } from 'antd';
 import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-
-// Register ChartJS components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// We no longer need to import Chart or register components here
+// since it's handled globally in chartjs-register.js
 
 function AttendanceBarChart({ data, title = 'Attendance by Course' }) {
   // Process data for chart

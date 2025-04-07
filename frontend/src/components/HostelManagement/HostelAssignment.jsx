@@ -625,8 +625,8 @@ function HostelAssignment() {
                 },
                 {
                   title: 'Student ID',
-                  dataIndex: 'studentId',
-                  key: 'studentId',
+                  dataIndex: 'schoolId',
+                  key: 'schoolId',
                 },
                 {
                   title: 'Hostel Assignment',

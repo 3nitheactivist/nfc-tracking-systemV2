@@ -14,6 +14,8 @@ import {
 import { db } from '../../utils/firebase/firebase';
 import CSVExport from './ExportTools/CSVExport';
 import ExcelExport from './ExportTools/ExcelExport';
+import dayjs from 'dayjs';
+import { useAttendance } from '../../hooks/useAttendance';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -24,12 +26,13 @@ function AttendanceHistory() {
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
   const [filters, setFilters] = useState({
-    dateRange: null,
+    dateRange: [dayjs().startOf('day'), dayjs().endOf('day')],
     courseId: null,
     studentId: null,
     searchText: '',
   });
   const [unsubscribe, setUnsubscribe] = useState(null);
+  const { attendanceRecords, fetchAttendanceRecords } = useAttendance();
 
   // Load initial data
   useEffect(() => {
@@ -227,7 +230,7 @@ function AttendanceHistory() {
   
   const handleResetFilters = () => {
     setFilters({
-      dateRange: null,
+      dateRange: [dayjs().startOf('day'), dayjs().endOf('day')],
       courseId: null,
       studentId: null,
       searchText: '',
@@ -256,12 +259,12 @@ function AttendanceHistory() {
           {record.profileImage?.data ? (
             <img 
               src={record.profileImage.data}
-              alt={record.studentName || record.name}
+              alt={record.studentName}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
-                e.target.parentNode.innerHTML = '<span class="anticon anticon-user" style="font-size: 20px; color: #1890ff;"></span>';
+                e.target.parentNode.innerHTML = '<UserOutlined style="font-size: 20px; color: #1890ff;" />';
               }}
             />
           ) : (
@@ -274,8 +277,37 @@ function AttendanceHistory() {
       title: 'Date & Time',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      render: (timestamp) => timestamp?.toLocaleString() || 'N/A',
-      sorter: (a, b) => a.timestamp - b.timestamp,
+      render: (timestamp) => {
+        // Handle both Firestore Timestamp and JavaScript Date objects
+        if (timestamp?.toDate) {
+          return timestamp.toDate().toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+        }
+        if (timestamp instanceof Date) {
+          return timestamp.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+        }
+        return 'N/A';
+      },
+      sorter: (a, b) => {
+        const aTime = a.timestamp?.toDate?.() || a.timestamp;
+        const bTime = b.timestamp?.toDate?.() || b.timestamp;
+        return aTime - bTime;
+      },
     },
     {
       title: 'Student',
@@ -320,7 +352,12 @@ function AttendanceHistory() {
           if (!studentId) return null;
           const studentQuery = query(studentsRef, where("__name__", "==", studentId));
           const snapshot = await getDocs(studentQuery);
-          return snapshot.empty ? null : { id: studentId, ...snapshot.docs[0].data() };
+          return snapshot.empty ? null : { 
+            id: studentId, 
+            ...snapshot.docs[0].data(),
+            // Ensure we preserve the map structure of profileImage
+            profileImage: snapshot.docs[0].data().profileImage || null
+          };
         })
       );
       
@@ -333,12 +370,29 @@ function AttendanceHistory() {
         const studentData = studentDataMap[record.studentId] || {};
         return {
           ...record,
-          profileImage: studentData.profileImage || null
+          profileImage: studentData.profileImage || null, // This will now contain the {data, uploaded} map
+          studentName: studentData.name || record.studentName,
+          schoolId: studentData.schoolId // Add schoolId for additional info
         };
       });
     } catch (error) {
       console.error("Error fetching student data:", error);
       return records;
+    }
+  };
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      await fetchAttendanceRecords({
+        startDate: filters.dateRange[0].toDate(),
+        endDate: filters.dateRange[1].toDate(),
+        courseId: filters.courseId
+      });
+    } catch (error) {
+      message.error('Failed to fetch attendance records');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -418,7 +472,7 @@ function AttendanceHistory() {
       
       <Card style={{ marginTop: 16 }}>
         <Table
-          dataSource={attendanceData}
+          dataSource={attendanceRecords}
           columns={columns}
           rowKey="id"
           loading={loading}

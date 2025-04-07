@@ -8,7 +8,7 @@ import LoadingScreen from "./components/LoadingScreen/LoadingScreen";
 import PrivateRoute from "./components/PrivateRoute";
 import ForgotPassword from "./components/ForgotPassword/ForgotPassword";
 import { BluetoothProvider } from "./components/BluetoothButton/BluetoothContext";
-import { AppLayout } from "./components/AppLayout/AppLayout";
+import AppLayout from './components/AppLayout/AppLayout';
 import "antd/dist/reset.css";
 import './styles/pages.css';
 import AttendanceTrackingPage from "./pages/AttendanceTrackingPage";

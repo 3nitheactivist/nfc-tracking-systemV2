@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { medicalService } from '../utils/firebase/medicalService';
 import { studentService } from '../utils/firebase/studentService';
 import { message } from 'antd';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../utils/firebase/firebase';
 
 export const useMedicalRecords = () => {
   const [loading, setLoading] = useState(false);
@@ -86,12 +88,47 @@ export const useMedicalRecords = () => {
     setScanStatus('idle');
   }, []);
 
+  // Add the missing addMedicalRecord function
+  const addMedicalRecord = useCallback(async (recordData) => {
+    try {
+      setLoading(true);
+      if (!student || !student.id) {
+        throw new Error('Student information is missing');
+      }
+
+      const medicalRecordData = {
+        ...recordData,
+        studentId: student.id,
+        studentName: student.name,
+        createdAt: serverTimestamp(),
+      };
+
+      // Add the record to Firestore
+      const docRef = await addDoc(collection(db, 'medicalRecords'), medicalRecordData);
+      
+      // Update local state
+      const newRecord = {
+        id: docRef.id,
+        ...medicalRecordData,
+      };
+      
+      setRecords(prevRecords => [newRecord, ...prevRecords]);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding medical record:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [student]);
+
   return {
     loading,
     student,
     records,
     scanStatus,
     handleNFCScan,
-    resetStudent
+    resetStudent,
+    addMedicalRecord  // Export the new function
   };
 }; 
