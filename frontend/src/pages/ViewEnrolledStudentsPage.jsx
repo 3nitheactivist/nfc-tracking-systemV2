@@ -22,7 +22,6 @@ import {
 import { motion } from 'framer-motion';
 import { studentService } from '../utils/firebase/studentService';
 import dayjs from 'dayjs';
-import { appwriteService } from '../utils/appwrite/appwriteService';
 
 const ViewEnrolledStudentsPage = () => {
   const [students, setStudents] = useState([]);

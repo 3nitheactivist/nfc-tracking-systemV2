@@ -26,7 +26,6 @@ import {
 import { studentService } from '../utils/firebase/studentService';
 import { useBluetooth } from '../components/BluetoothButton/BluetoothContext';
 import { fileToBase64 } from '../utils/imageUtills';
-import { appwriteService } from '../utils/appwrite/appwriteService';
 
 const { Title, Text } = Typography;
 
