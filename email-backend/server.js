@@ -87,7 +87,7 @@ app.post('/send-email', async (req, res) => {
       from: process.env.SMTP_USER
     });
 
-    if (!recipient || !subject || !message) {
+    if (!recipient  !subject  !message) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'
@@ -152,7 +152,7 @@ app.get('/', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT  10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Email service configuration:', {

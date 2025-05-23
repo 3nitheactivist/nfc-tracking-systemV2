@@ -12,7 +12,8 @@ import {
   Result,
   Badge,
   Spin,
-  Upload
+  Upload,
+  Select
 } from 'antd';
 import { motion } from 'framer-motion';
 import { 
@@ -26,6 +27,7 @@ import {
 import { studentService } from '../utils/firebase/studentService';
 import { useBluetooth } from '../components/BluetoothButton/BluetoothContext';
 import { fileToBase64 } from '../utils/imageUtills';
+import { DEPARTMENTS, SCHOOLS, LEVELS, PROGRAMS } from '../constants/enrollmentOptions';
 
 const { Title, Text } = Typography;
 
@@ -44,7 +46,11 @@ const StudentEnrollmentPage = () => {
     email: '',
     phone: '',
     schoolId: '',
-    nfcTagId: ''
+    nfcTagId: '',
+    department: '',
+    school: '',
+    level: '',
+    program: ''
   });
   
   // Get Bluetooth connection state from context
@@ -232,8 +238,8 @@ const StudentEnrollmentPage = () => {
   const onFinish = async () => {
     try {
       // Validate that all required fields are filled
-      const { name, email, phone, schoolId, nfcTagId } = studentData;
-      if (!name || !email || !phone || !schoolId || !nfcTagId) {
+      const { name, email, phone, schoolId, nfcTagId, department, school, level, program } = studentData;
+      if (!name || !email || !phone || !schoolId || !nfcTagId || !department || !school || !level || !program) {
         message.error('All fields are required');
         return;
       }
@@ -441,6 +447,38 @@ const StudentEnrollmentPage = () => {
               </Button>
             </div>
           </Form.Item>
+          <Form.Item label="Department" name="department" rules={[{ required: true, message: 'Please select a department' }]}> 
+            <Select
+              value={studentData.department}
+              onChange={value => handleInputChange('department', value)}
+            >
+              {DEPARTMENTS.map(dep => <Select.Option key={dep} value={dep}>{dep}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item label="School" name="school" rules={[{ required: true, message: 'Please select a school' }]}> 
+            <Select
+              value={studentData.school}
+              onChange={value => handleInputChange('school', value)}
+            >
+              {SCHOOLS.map(sch => <Select.Option key={sch} value={sch}>{sch}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Level" name="level" rules={[{ required: true, message: 'Please select a level' }]}> 
+            <Select
+              value={studentData.level}
+              onChange={value => handleInputChange('level', value)}
+            >
+              {LEVELS.map(lvl => <Select.Option key={lvl} value={lvl}>{lvl}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Program" name="program" rules={[{ required: true, message: 'Please select a program' }]}> 
+            <Select
+              value={studentData.program}
+              onChange={value => handleInputChange('program', value)}
+            >
+              {PROGRAMS.map(prog => <Select.Option key={prog} value={prog}>{prog}</Select.Option>)}
+            </Select>
+          </Form.Item>
         </motion.div>
       ),
     },
@@ -547,6 +585,18 @@ const StudentEnrollmentPage = () => {
             <div style={{ marginBottom: 16 }}>
               <Text strong>NFC Tag ID:</Text> {studentData.nfcTagId}
             </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>Department:</Text> {studentData.department}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>School:</Text> {studentData.school}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>Level:</Text> {studentData.level}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>Program:</Text> {studentData.program}
+            </div>
             <Button 
               type="primary" 
               size="large" 
@@ -580,7 +630,11 @@ const StudentEnrollmentPage = () => {
                   email: '',
                   phone: '',
                   schoolId: '',
-                  nfcTagId: ''
+                  nfcTagId: '',
+                  department: '',
+                  school: '',
+                  level: '',
+                  program: ''
                 });
                 setImageFile(null);
                 setImagePreview('');

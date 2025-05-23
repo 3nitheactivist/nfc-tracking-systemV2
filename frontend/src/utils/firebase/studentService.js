@@ -63,6 +63,11 @@ export const studentService = {
       // Add student to Firestore
       const docRef = await addDoc(collection(db, COLLECTIONS.STUDENTS), {
         ...studentData,
+        // Explicitly store new enrollment fields for clarity
+        department: studentData.department,
+        school: studentData.school,
+        level: studentData.level,
+        program: studentData.program,
         enrollmentDate: new Date(),
         status: 'active',
         permissions: {

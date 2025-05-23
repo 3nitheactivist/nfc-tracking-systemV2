@@ -318,8 +318,8 @@ const AppHeader = ({ toggleSidebar }) => {
   ];
 
   return (
-    <AntHeader
-      style={{
+    <AntHeader 
+      style={{ 
         background: "#00923f",
         padding: "0 20px",
         height: "70px",
@@ -531,7 +531,7 @@ const AppLayout = ({ children }) => {
       <AppSidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       <Layout>
         <Content style={{ marginTop: "70px", padding: "24px" }}>
-          {children}
+        {children}
         </Content>
       </Layout>
     </Layout>
